@@ -3,10 +3,11 @@ import cv2
 import scipy.ndimage
 import time
 
-def fstack(paths, focus, WSize=9, alpha=0.2, sth=13):
+def fstack_images(imgs, focus, verbose=False, WSize=9, alpha=0.2, sth=13):
     t0 = time.time()
-    print("FMeasure", end = ": ")
-    imgs = np.array([cv2.imread(path) for path in paths], dtype='f')
+    if verbose: 
+        print("FMeasure", end = ": ")
+    imgs = np.array(imgs, dtype='f')
     isColor, stack, h, w, c = parseInputs(imgs)
     
     # If isColor, store the color version and overwrite imgs with black and white
@@ -19,12 +20,14 @@ def fstack(paths, focus, WSize=9, alpha=0.2, sth=13):
     
     focus_measure = np.array([gfocus(img, WSize) for img in imgs])
     t1 = time.time()
-    print(t1 - t0)
+    if verbose:(t1 - t0)
     
-    print("SMeasure")
+    if verbose: 
+        print("SMeasure")
     u, s, A, FMax = gauss3P(focus, focus_measure)
     t2 = time.time()
-    print("gauss3P: " + str(t2 - t1))
+    if verbose: 
+        print("gauss3P: " + str(t2 - t1))
     
     # Estimate RMS error along slice axis
     err = np.array([np.abs(focus_measure[i,:,:] - A * np.exp(-(1+focus[i]-u)**2/(2*(s**2)))) for i in range(len(focus))])
@@ -33,7 +36,8 @@ def fstack(paths, focus, WSize=9, alpha=0.2, sth=13):
     err = np.sum(err, axis=0)
     err = err/(FMax * stack)
     t3 = time.time()
-    print("err: " + str(t3 - t2))
+    if verbose: 
+        print("err: " + str(t3 - t2))
     # might need to transpose focus_measure to slice across slices
     # renormalize focus_measure
     focus_measure = [fmeas/FMax for fmeas in focus_measure]
@@ -53,7 +57,8 @@ def fstack(paths, focus, WSize=9, alpha=0.2, sth=13):
     fmn = np.sum(focus_measure,0)
     
     t4 = time.time()
-    print("filter: " + str(t4 - t3))    
+    if verbose: 
+        print("filter: " + str(t4 - t3))    
     
     if(isColor):
         imgs_color[:,:,0] = np.sum(imgs_color[:,:,0] * focus_measure , axis=0)/fmn
@@ -65,8 +70,82 @@ def fstack(paths, focus, WSize=9, alpha=0.2, sth=13):
         retval =  imgs
         
     t5 = time.time()
-    print("fusion: " + str(t5 - t4))
-    print("total time: " + str(t5-t0))
+    if verbose: 
+        print("fusion: " + str(t5 - t4))
+    if verbose: 
+        print("total time: " + str(t5-t0))
+    return retval
+
+def fstack(paths, focus, verbose=False, WSize=9, alpha=0.2, sth=13):
+    t0 = time.time()
+    if verbose: 
+        print("FMeasure", end = ": ")
+    imgs = np.array([cv2.imread(path) for path in paths], dtype='f')
+    isColor, stack, h, w, c = parseInputs(imgs)
+    
+    # If isColor, store the color version and overwrite imgs with black and white
+    if(isColor):
+        imgs_color = np.copy(imgs)
+        imgs = np.array([cv2.cvtColor(image, cv2.COLOR_BGR2GRAY) for image in imgs], dtype='f')
+    # Take only one channel
+    if(c>1):
+        imgs = imgs[:,:,:,0]
+    
+    focus_measure = np.array([gfocus(img, WSize) for img in imgs])
+    t1 = time.time()
+    if verbose: 
+        print(t1 - t0)
+        print("SMeasure")
+    u, s, A, FMax = gauss3P(focus, focus_measure)
+    t2 = time.time()
+    if verbose: 
+        print("gauss3P: " + str(t2 - t1))
+    
+    # Estimate RMS error along slice axis
+    err = np.array([np.abs(focus_measure[i,:,:] - A * np.exp(-(1+focus[i]-u)**2/(2*(s**2)))) for i in range(len(focus))])
+    err[np.isnan(err)] = np.max(err[~np.isnan(err)])
+    # Sum along slice axis
+    err = np.sum(err, axis=0)
+    err = err/(FMax * stack)
+    t3 = time.time()
+    if verbose: 
+        print("err: " + str(t3 - t2))
+    # might need to transpose focus_measure to slice across slices
+    # renormalize focus_measure
+    focus_measure = [fmeas/FMax for fmeas in focus_measure]
+    # Filter the err
+    kernel = np.ones((WSize, WSize))/(WSize * WSize)
+    inv_psnr = np.array(scipy.ndimage.correlate(err, kernel, mode='nearest'), dtype='f')
+        
+    S = 20*np.log10(1.0/inv_psnr)
+    S[np.isnan(S)] = np.min(S[~np.isnan(S)])
+    
+    phi = 0.5*(1+np.tanh(alpha*(S-sth)))/alpha
+    phi = cv2.medianBlur(phi, 3)
+    
+    focus_measure = [0.5 + 0.5*np.tanh(phi*(slc-1)) for slc in focus_measure]
+    
+    # Sum along slice axis
+    fmn = np.sum(focus_measure,0)
+    
+    t4 = time.time()
+    if verbose: 
+        print("filter: " + str(t4 - t3))    
+    
+    if(isColor):
+        imgs_color[:,:,0] = np.sum(imgs_color[:,:,0] * focus_measure , axis=0)/fmn
+        imgs_color[:,:,1] = np.sum(imgs_color[:,:,1] * focus_measure , axis=0)/fmn
+        imgs_color[:,:,2] = np.sum(imgs_color[:,:,2] * focus_measure , axis=0)/fmn
+        retval =  imgs_color
+    else:
+        imgs = np.sum(imgs * focus_measure , axis=0)/fmn
+        retval =  imgs
+        
+    t5 = time.time()
+    if verbose: 
+        print("fusion: " + str(t5 - t4))
+    if verbose: 
+        print("total time: " + str(t5-t0))
     return retval
         
 def gfocus(im, WSize):
@@ -122,7 +201,7 @@ def gauss3P(x, Y):
     return np.real(u), np.real(s), np.real(A), np.real(Ymax)
 
 
-def parseInputs(image_list):
+def parseInputs(image_list, verbose=False):
     '''
     Reads and returns properties of the image stack
     '''
@@ -131,12 +210,15 @@ def parseInputs(image_list):
     isColor = True
     if (len(img.shape) < 3):
         isColor = False
-        print("not 3D")
+        if verbose: 
+            print("not 3D")
     if(len(img.shape) == 3):
-        print("is 3D")
+        if verbose: 
+            print("is 3D")
         b,g,r = img[:,:,0], img[:,:,1], img[:,:,2]
         if ((b==g).all()) and ((b==r).all()):
-            print("all same")
+            if verbose: 
+                print("all same")
             isColor = False
     
     # Find number of images and size of each image

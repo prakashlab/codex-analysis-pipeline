@@ -4,9 +4,11 @@ import time
 import cupy as cp
 import cupyx.scipy.ndimage
 
-def fstack_cu_images(imgs, focus, WSize=9, alpha=0.2, sth=13):
+def fstack_images(imgs, focus, verbose=False, WSize=9, alpha=0.2, sth=13):
     t0 = time.time()
-    print("FMeasure", end = ": ")
+    if verbose:
+        print("GPU")
+        print("FMeasure", end = ": ")
     imgs = np.array(imgs, dtype='f')
     isColor, stack, h, w, c = parseInputs(imgs)
     
@@ -20,12 +22,13 @@ def fstack_cu_images(imgs, focus, WSize=9, alpha=0.2, sth=13):
     
     focus_measure = np.array([gfocus(img, WSize) for img in imgs])
     t1 = time.time()
-    print(t1 - t0)
-    
-    print("SMeasure")
+    if verbose:
+        print(t1 - t0)
+        print("SMeasure")
     u, s, A, FMax = gauss3P(focus, focus_measure)
     t2 = time.time()
-    print("gauss3P: " + str(t2 - t1))
+    if verbose:
+        print("gauss3P: " + str(t2 - t1))
     
     # Estimate RMS error along slice axis
     fm = cp.array(focus_measure)
@@ -37,7 +40,8 @@ def fstack_cu_images(imgs, focus, WSize=9, alpha=0.2, sth=13):
     err = err/(FMax * stack)
     err = cp.array(err)
     t3 = time.time()
-    print("err: " + str(t3 - t2))
+    if verbose:
+        print("err: " + str(t3 - t2))
     # might need to transpose focus_measure to slice across slices
     # renormalize focus_measure
     focus_measure = cp.array([fmeas/FMax for fmeas in focus_measure])
@@ -58,7 +62,8 @@ def fstack_cu_images(imgs, focus, WSize=9, alpha=0.2, sth=13):
     focus_measure = focus_measure.get()
     
     t4 = time.time()
-    print("filter: " + str(t4 - t3))    
+    if verbose:
+        print("filter: " + str(t4 - t3))    
     
     if(isColor):
         imgs_color[:,:,0] = np.sum(imgs_color[:,:,0] * focus_measure , axis=0)/fmn
@@ -70,8 +75,9 @@ def fstack_cu_images(imgs, focus, WSize=9, alpha=0.2, sth=13):
         retval =  imgs
         
     t5 = time.time()
-    print("fusion: " + str(t5 - t4))
-    print("total time: " + str(t5-t0))
+    if verbose:
+        print("fusion: " + str(t5 - t4))
+        print("total time: " + str(t5-t0))
     return retval
 
 
