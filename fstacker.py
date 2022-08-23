@@ -34,7 +34,7 @@ def main():
     jmax = 5
     kmin = 0
     kmax = 9
-    cmin = 2
+    cmin = 0
     cmax = 11
     crop_start = 0 # crop settings
     crop_end = 3000
@@ -271,9 +271,9 @@ def perform_stack(colors, use_gpu, key, gcs_project, src, exp, cha, dst, typ, im
                         if invert_contrast:
                             I = 255 - I
                     
-                    # save images
-                    fname = str(c) + "_" + str(i) + '_' + str(j) + '_' + id + "_" +  channel + '.png'
-                    savepath = dst + '/' + exp_i + '/' + channel + '/'
+                    # save images 
+                    fname = str(l) + '_' + channel + '.png'
+                    savepath = dst + '/' + exp_i + '/' + str(i) + '/' + str(j) + '/' + str(c) + '/'
                     if dst[0:5] == 'gs://':
                         cv2.imwrite(fname, I)
                         fs.put(fname, savepath+fname)
