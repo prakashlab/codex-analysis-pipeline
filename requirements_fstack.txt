@@ -5,4 +5,3 @@ scipy==1.8.1
 gcsfs==2022.7.1
 imageio==2.21.1
 pandas==1.4.3
-tqdm==4.64.0

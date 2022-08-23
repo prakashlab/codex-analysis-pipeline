@@ -10,7 +10,6 @@ from skimage.morphology import white_tophat
 from skimage.morphology import disk
 from skimage.registration import phase_cross_correlation
 from skimage.transform import warp, AffineTransform
-from tqdm import tqdm
 import os
 
 def main():
@@ -202,7 +201,7 @@ def perform_stack(colors, use_gpu, key, gcs_project, src, exp, cha, dst, typ, im
             print("n cycles = " + str(n))
         
         
-        for i, j in tqdm(product(range(imin, imax+1), range(jmin, jmax+1))):
+        for i, j in product(range(imin, imax+1), range(jmin, jmax+1)):
             for c in range(cmin, cmax+1):
                 id = df.loc[c, 'Acquisition_ID']
                 if verbose:
@@ -251,7 +250,7 @@ def perform_stack(colors, use_gpu, key, gcs_project, src, exp, cha, dst, typ, im
                         else:
                             if l == 0:
                                 # compare the first channel of later cycles to the first channel of the first cycle
-                                shift, error, diffphase = phase_cross_correlation(I, I0, upsample_factor = 5)
+                                shift, __, __ = phase_cross_correlation(I, I0, upsample_factor = 5)
                                 if verbose:
                                     print(shift)
                                 # create the transform
