@@ -1,4 +1,4 @@
-# CLI to focus-stack a series of local or remote images 
+# CLI/script to focus-stack a series of local or remote images 
 import gcsfs
 import imageio
 import argparse
@@ -203,6 +203,8 @@ def perform_stack(colors, use_gpu, key, gcs_project, src, exp, cha, dst, typ, im
         
         for i, j in product(range(imin, imax+1), range(jmin, jmax+1)):
             for c in range(cmin, cmax+1):
+                if c >= cmin+2:
+                    break
                 id = df.loc[c, 'Acquisition_ID']
                 if verbose:
                     print(id)  
@@ -270,14 +272,18 @@ def perform_stack(colors, use_gpu, key, gcs_project, src, exp, cha, dst, typ, im
                             I = 255 - I
                     
                     # save images
-                    fname = id + '_' + str(i) + '_' + str(j) + '_' + channel + '.' + typ
-                    savepath = dst + '/' + fname
+                    fname = str(c) + "_" + str(i) + '_' + str(j) + '_' + id + "_" +  channel + '.png'
+                    savepath = dst + '/' + exp_i + '/' + channel + '/'
                     if dst[0:5] == 'gs://':
                         cv2.imwrite(fname, I)
-                        fs.put(fname, savepath)
+                        fs.put(fname, savepath+fname)
                         os.remove(fname)
                     else:
-                        cv2.imwrite(savepath, I)
+                        try:
+                            os.makedirs(savepath)
+                        except:
+                            pass
+                        cv2.imwrite(savepath+fname, I)
 
 
 def imread_gcsfs(fs,file_path):

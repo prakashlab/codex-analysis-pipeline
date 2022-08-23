@@ -14,10 +14,12 @@ This repository contains everything necessary to process image data, from focus 
 - fstack_cu
   - `__init__.py`: this is the CUDA-accelerated fstack code.
   - Python code in the pipeline/ directory can import fstack with `from fstack_cu import fstack_cu` or `from fstack_cu import fstack_cu_images`
-- `fstacker.py`: perform a focus stack using local (provide path) or remote (using GCSFS) images
+- `fstacker.py`: perform a focus stack using local (provide path) or remote (using GCSFS) images. This code assumes the existence of an `index.csv` file in the source directory containing cycle names.
+- `segmenter.py`: segment nuclei using cellpose using a pretrained model
 
 ## Guides
 
-### fstack cli usage
+### fstacker usage
 
-1. Prepare your images. They should all be in a single directory (local or remote) and have the format "\[filename\]\_\[focus_idx\]\_.\[extension\]" where \[filename\] is the same across the images in the series, \[focus_idx\] is the index of the image ranging from 0 to n-1 where n is the total number of images in the series. The indices must correspond to the focus distance in the image. Focus stacking can only be done if n is greater than or equal to 5.
+1. to use fstacker as a script, set `CLI = TRUE` in `main()` in `fstacker.py` and set the constants. Then, run the file.
+2. to use the command line interface, set `CLI = TRUE` in `main()` in `fstacker.py`. Navigate to the directory `fstacker.py` is in, activate the conda environment if necessary, and run `python -m fstacker --help` to see all the flags and how to set them.
