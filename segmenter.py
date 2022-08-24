@@ -11,12 +11,15 @@ def main():
     # root_dir needs a trailing slash (i.e. /root/dir/)
     root_dir = "/home/prakashlab/Documents/kmarx/pipeline/test/"# 'gs://octopi-codex-data-processing/TEST_1HDcVekx4mrtl0JztCXLn9xN6GOak4AU/'#
     exp_id   = "20220601_20x_75mm/"
-    channel =  "Fluorescence_405_nm_Ex"
+    channel =  "Fluorescence_405_nm_Ex" # only run segmentation on this channel
     cpmodel = "gs://octopi-codex-data-processing/TEST_1HDcVekx4mrtl0JztCXLn9xN6GOak4AU/cellposemodel"
     channels = [0,0] # grayscale only
     key = '/home/prakashlab/Documents/fstack/codex-20220324-keys.json'
     use_gpu = True
     gcs_project = 'soe-octopi'
+    run_seg(root_dir, exp_id, channel, cpmodel, channels, key, use_gpu, gcs_project)
+
+def run_seg(root_dir, exp_id, channel, cpmodel, channels, key, use_gpu, gcs_project):
     # Load remote files if necessary
     root_remote = False
     if root_dir[0:5] == 'gs://':
@@ -38,9 +41,9 @@ def main():
     path = root_dir + exp_id + "**/**/**/**" + channel + '.png'
     print(path)
     if root_remote:
-        allpaths = [path for path in fs.glob(path, recursive=True)]
+        allpaths = [p for p in fs.glob(path, recursive=True)]
     else:
-        allpaths = [path for path in glob.iglob(path, recursive=True)]
+        allpaths = [p for p in glob.iglob(path, recursive=True)]
     # remove duplicates
     imgpaths = list(dict.fromkeys(allpaths))
     imgpaths.sort()
