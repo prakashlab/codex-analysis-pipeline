@@ -4,20 +4,23 @@ import cv2
 import re
 from natsort import natsorted
 import pandas as pd
-from tqdm import tqdm, trange
 
 # Cycle indices are 0-11, we can choose a subset of the cycles to analyze
-start_idx = 2
-end_idx   = 11
+start_idx = 0 #2
+end_idx   = 4 #11
 # 4 channels
 n_ch      = 4
 # How many pixels around the mask to expand
 expansion = 7
 # filename
 out = "meanbright_" + str(expansion) + ".csv"
-root_dir = "/home/prakashlab/Documents/kmarx/pipeline/test/"
+
+# root_dir needs a trailing slash (i.e. /root/dir/)
+root_dir = 'gs://octopi-codex-data-processing/TEST_1HDcVekx4mrtl0JztCXLn9xN6GOak4AU/'#"/home/prakashlab/Documents/kmarx/pipeline/test/"
 exp_id   = "20220601_20x_75mm/"
-savepath = root_dir + out
+channel =  "Fluorescence_405_nm_Ex"
+key = '/home/prakashlab/Documents/fstack/codex-20220324-keys.json'
+gcs_project = 'soe-octopi'
 
 print("Reading .npy paths")
 allpaths = [path for path in glob.iglob(root_dir + exp_id  + "**/**.npy", recursive=True)]

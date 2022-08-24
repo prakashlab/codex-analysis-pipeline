@@ -6,6 +6,84 @@ import os
 import gcsfs
 import imageio
 
+# root_dir needs a trailing slash (i.e. /root/dir/)
+root_dir = 'gs://octopi-codex-data-processing/TEST_1HDcVekx4mrtl0JztCXLn9xN6GOak4AU/'#"/home/prakashlab/Documents/kmarx/pipeline/test/"
+exp_id   = "20220601_20x_75mm/"
+channel =  "Fluorescence_405_nm_Ex"
+cpmodel = 'gs://octopi-codex-data-processing/TEST_1HDcVekx4mrtl0JztCXLn9xN6GOak4AU/cellposemodel'
+channels = [0,0] # grayscale only
+key = '/home/prakashlab/Documents/fstack/codex-20220324-keys.json'
+gcs_project = 'soe-octopi'
+
+def main():
+    # Load remote files if necessary
+    root_remote = False
+    if root_dir[0:5] == 'gs://':
+        root_remote = True
+
+    model_remote = False
+    if cpmodel[0:5] == 'gs://':
+        model_remote = True
+    fs = None
+    if model_remote or root_remote:
+        fs = gcsfs.GCSFileSystem(project=gcs_project,token=key)
+    if model_remote:
+        modelpath = "./cellpose_temp"
+        fs.get(cpmodel, modelpath)
+        cpmodel = modelpath
+
+    print("Reading image paths")
+    # filter - only look for specified channel
+    path = root_dir + exp_id + "**/**/**/**" + channel + '.png'
+    print(path)
+    if root_remote:
+        allpaths = [path for path in fs.glob(path, recursive=True)]
+    else:
+        allpaths = [path for path in glob.iglob(path, recursive=True)]
+    # remove duplicates
+    imgpaths = list(dict.fromkeys(allpaths))
+    imgpaths.sort()
+    imgpaths = np.array(imgpaths)
+    print("Reading images")
+    # load images
+    if root_remote:
+        imgs = [imread_gcsfs(fs, path) for path in imgpaths]
+    else:
+        imgs = [io.imread(path) for path in imgpaths]
+
+    print("Starting cellpose")
+    # start cellpose
+    model = models.CellposeModel(gpu=use_gpu, pretrained_model=model)
+    print("Starting segmentation")
+
+    placeholder = "./placeholder.png"
+
+    print(str(len(imgs)) + " images to segment")
+
+    # segment one at a time - gpu bottleneck
+    for idx, im in enumerate(imgs):
+        print(idx)
+        imlist  = [im]
+        masks, flows, styles = model.eval(imlist, diameter=None, channels=channels)
+        diams = 0
+        if root_remote:
+            savepath = placeholder
+        else:
+            savepath = imgpaths[idx]
+        # actually run the segmentation
+        io.masks_flows_to_seg(imlist, masks, flows, diams, [savepath], channels)
+
+        # move the .npy to remote if necessary
+        if root_remote:
+            # generate the local and remote path names
+            savepath = savepath.rsplit(".", 1)[0] + "_seg.npy"
+            rpath = imgpaths[idx].rsplit(".", 1)[0] + "_seg.npy"
+            fs.put(savepath, rpath)
+            os.remove(savepath)
+
+    if model_remote:
+        os.remove(cpmodel)
+
 def imread_gcsfs(fs,file_path):
     '''
     imread_gcsfs gets the image bytes from the remote filesystem and convets it into an image
@@ -23,81 +101,5 @@ def imread_gcsfs(fs,file_path):
     I = imageio.core.asarray(imageio.v2.imread(img_bytes, im_type))
     return I
 
-# root_dir needs a trailing slash (i.e. /root/dir/)
-root_dir = 'gs://octopi-codex-data-processing/TEST_1HDcVekx4mrtl0JztCXLn9xN6GOak4AU/'#"/home/prakashlab/Documents/kmarx/pipeline/test/"
-exp_id   = "20220601_20x_75mm/"
-channel =  "Fluorescence_405_nm_Ex"
-use_gpu = True
-cpmodel = 'gs://octopi-codex-data-processing/TEST_1HDcVekx4mrtl0JztCXLn9xN6GOak4AU/cellposemodel'
-channels = [0,0] # grayscale only
-use_gpu = True  # use GPU accelerated segmentation
-key = '/home/prakashlab/Documents/fstack/codex-20220324-keys.json'
-gcs_project = 'soe-octopi'
-
-# Load remote files if necessary
-root_remote = False
-if root_dir[0:5] == 'gs://':
-    root_remote = True
-
-model_remote = False
-if cpmodel[0:5] == 'gs://':
-    model_remote = True
-fs = None
-if model_remote or root_remote:
-    fs = gcsfs.GCSFileSystem(project=gcs_project,token=key)
-if model_remote:
-    modelpath = "./cellpose_temp"
-    fs.get(cpmodel, modelpath)
-    cpmodel = modelpath
-
-print("Reading image paths")
-# filter - only look for specified channel
-path = root_dir + exp_id + "**/**/**/**" + channel + '.png'
-print(path)
-if root_remote:
-    allpaths = [path for path in fs.glob(path, recursive=True)]
-else:
-    allpaths = [path for path in glob.iglob(path, recursive=True)]
-# remove duplicates
-imgpaths = list(dict.fromkeys(allpaths))
-imgpaths.sort()
-imgpaths = np.array(imgpaths)
-print("Reading images")
-# load images
-if root_remote:
-    imgs = [imread_gcsfs(fs, path) for path in imgpaths]
-else:
-    imgs = [io.imread(path) for path in imgpaths]
-
-print("Starting cellpose")
-# start cellpose
-model = models.CellposeModel(gpu=use_gpu, pretrained_model=model)
-print("Starting segmentation")
-
-placeholder = "./placeholder.png"
-
-print(str(len(imgs)) + " images to segment")
-
-# segment one at a time - gpu bottleneck
-for idx, im in enumerate(imgs):
-    print(idx)
-    imlist  = [im]
-    masks, flows, styles = model.eval(imlist, diameter=None, channels=channels)
-    diams = 0
-    if root_remote:
-        savepath = placeholder
-    else:
-        savepath = imgpaths[idx]
-    # actually run the segmentation
-    io.masks_flows_to_seg(imlist, masks, flows, diams, [savepath], channels)
-
-    # move the .npy to remote if necessary
-    if root_remote:
-        # generate the local and remote path names
-        savepath = savepath.rsplit(".", 1)[0] + "_seg.npy"
-        rpath = imgpaths[idx].rsplit(".", 1)[0] + "_seg.npy"
-        fs.put(savepath, rpath)
-        os.remove(savepath)
-
-if model_remote:
-    os.remove(cpmodel)
+if __name__ == "__main__":
+    main()
