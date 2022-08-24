@@ -31,8 +31,9 @@ def run_seg(root_dir, exp_id, channel, cpmodel, channels, key, use_gpu, gcs_proj
     fs = None
     if model_remote or root_remote:
         fs = gcsfs.GCSFileSystem(project=gcs_project,token=key)
+    
+    modelpath = "./cellpose_temp"
     if model_remote:
-        modelpath = "./cellpose_temp"
         fs.get(cpmodel, modelpath)
         cpmodel = modelpath
 
@@ -86,7 +87,7 @@ def run_seg(root_dir, exp_id, channel, cpmodel, channels, key, use_gpu, gcs_proj
             os.remove(savepath)
 
     if model_remote:
-        os.remove(cpmodel)
+        os.remove(modelpath)
 
 def imread_gcsfs(fs,file_path):
     '''
