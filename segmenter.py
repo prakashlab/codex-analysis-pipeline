@@ -6,16 +6,17 @@ import os
 import gcsfs
 import imageio
 
-# root_dir needs a trailing slash (i.e. /root/dir/)
-root_dir = 'gs://octopi-codex-data-processing/TEST_1HDcVekx4mrtl0JztCXLn9xN6GOak4AU/'#"/home/prakashlab/Documents/kmarx/pipeline/test/"
-exp_id   = "20220601_20x_75mm/"
-channel =  "Fluorescence_405_nm_Ex"
-cpmodel = 'gs://octopi-codex-data-processing/TEST_1HDcVekx4mrtl0JztCXLn9xN6GOak4AU/cellposemodel'
-channels = [0,0] # grayscale only
-key = '/home/prakashlab/Documents/fstack/codex-20220324-keys.json'
-gcs_project = 'soe-octopi'
 
 def main():
+    # root_dir needs a trailing slash (i.e. /root/dir/)
+    root_dir = "/home/prakashlab/Documents/kmarx/pipeline/test/"# 'gs://octopi-codex-data-processing/TEST_1HDcVekx4mrtl0JztCXLn9xN6GOak4AU/'#
+    exp_id   = "20220601_20x_75mm/"
+    channel =  "Fluorescence_405_nm_Ex"
+    cpmodel = "gs://octopi-codex-data-processing/TEST_1HDcVekx4mrtl0JztCXLn9xN6GOak4AU/cellposemodel"
+    channels = [0,0] # grayscale only
+    key = '/home/prakashlab/Documents/fstack/codex-20220324-keys.json'
+    use_gpu = True
+    gcs_project = 'soe-octopi'
     # Load remote files if necessary
     root_remote = False
     if root_dir[0:5] == 'gs://':
@@ -53,7 +54,7 @@ def main():
 
     print("Starting cellpose")
     # start cellpose
-    model = models.CellposeModel(gpu=use_gpu, pretrained_model=model)
+    model = models.CellposeModel(gpu=use_gpu, pretrained_model=cpmodel)
     print("Starting segmentation")
 
     placeholder = "./placeholder.png"
