@@ -15,7 +15,6 @@ def main():
     n_ch      = 4
     # How many pixels around the mask to expand
     expansion = 7   
-
     # root_dir needs a trailing slash (i.e. /root/dir/)
     root_dir = 'gs://octopi-codex-data-processing/TEST_1HDcVekx4mrtl0JztCXLn9xN6GOak4AU/' #"/home/prakashlab/Documents/kmarx/pipeline/test/" #'gs://octopi-codex-data-processing/TEST_1HDcVekx4mrtl0JztCXLn9xN6GOak4AU/'
     exp_id   = "20220601_20x_75mm/"

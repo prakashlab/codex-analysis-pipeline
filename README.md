@@ -20,16 +20,26 @@ This repository contains everything necessary to process image data, from focus 
 - `requirements-segment.txt`: see `requirements-fstack.txt` description
 - `segmenter.py`: segment nuclei using cellpose using a pretrained model. Use the cellpose gui to create the model. `segmenter.py` assumes a folder and file structure created by `fstacker.py`.
 
+### analysis
+
+- `requirements-analyze.txt`: see `requirements-fstack.txt` description
+- `analyzer.py`: measure the size and average brightness of each cell in each channel and save as a csv. `analyzer.py` assumes a folder and file structure created by `segmenter.py`.
+
 ## Guides
 
 ### fstacker usage
 
-1. to use fstacker as a script, set `CLI = TRUE` in `main()` in `fstacker.py` and set the constants. Then, run the file.
-2. to use the command line interface, set `CLI = TRUE` in `main()` in `fstacker.py`. Navigate to the directory `fstacker.py` is in, activate the conda environment if necessary, and run `python -m fstacker --help` to see all the flags and how to set them.
+1. to use fstacker as a script, set `CLI = TRUE` in `main()` in `fstacker.py` and set the constants. Then, run the file
+2. to use the command line interface, set `CLI = TRUE` in `main()` in `fstacker.py`. Navigate to the directory `fstacker.py` is in, activate the conda environment if necessary, and run `python -m fstacker --help` to see all the flags and how to set them
 
-### segmenter.py
+### segmenter usage
 
 if you are having trouble installing cellpose, try uninstalling all other python packages that use QTpy (e.g. cv2), install cellpose, then reinstall everthing you uninstalled.
 
-1. to use segmenter as a script, set the constants and run the file. Note that it takes a pretrained model as a parameter; you can change it to one of the built-in pretrained models or set a path to a custom pretrained model.
+1. to use segmenter as a script, set the constants and run the file. Note that it takes a pretrained model as a parameter; you can change it to one of the built-in pretrained models or set a path to a custom pretrained model
 2. cellpose already has a CLI; `segmenter.py` itself does not have a CLI
+
+### analyzer usage
+
+1. to use analyzer as a script, set the constants and run the file
+2. there currently is no CLI version
