@@ -11,14 +11,16 @@ from skimage.morphology import disk
 from skimage.registration import phase_cross_correlation
 from skimage.transform import warp, AffineTransform
 import os
+debugging = False
 
 def main():
+    
     CLI = False     # set to true for CLI, if false, the following constants are used:
     use_gpu = True  # use GPU accelerated focus stacking
     key = '/home/prakashlab/Documents/fstack/codex-20220324-keys.json'
     gcs_project = 'soe-octopi'
     src = "gs://octopi-codex-data"
-    dst = './test' # "gs://octopi-codex-data-processing/TEST_1HDcVekx4mrtl0JztCXLn9xN6GOak4AU" #"./test"
+    dst = "gs://octopi-codex-data-processing/TEST_1HDcVekx4mrtl0JztCXLn9xN6GOak4AU" #"./test"
     exp = ["20220601_20x_75mm"]
     cha = ["Fluorescence_405_nm_Ex", "Fluorescence_488_nm_Ex", "Fluorescence_561_nm_Ex", "Fluorescence_638_nm_Ex"]
     typ = "bmp"
@@ -153,7 +155,6 @@ def perform_stack(colors, use_gpu, key, gcs_project, src, exp, cha, dst, typ, im
             print("Using CPU")
     # check if remote
     is_remote = False
-    fs = None
     if src[0:5] == 'gs://':
         is_remote = True
 
@@ -202,8 +203,10 @@ def perform_stack(colors, use_gpu, key, gcs_project, src, exp, cha, dst, typ, im
         
         
         for i, j in product(range(imin, imax+1), range(jmin, jmax+1)):
+            if debugging and (i > imin + 2 or j > jmin + 2):
+                break
             for c in range(cmin, cmax+1):
-                if c >= cmin+2:
+                if debugging and c >= cmin+4:
                     break
                 id = df.loc[c, 'Acquisition_ID']
                 if verbose:
