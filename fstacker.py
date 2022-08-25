@@ -17,10 +17,11 @@ def main():
     
     CLI = False     # set to true for CLI, if false, the following constants are used:
     use_gpu = True  # use GPU accelerated focus stacking
+    prefix = "20x"  # if index.csv DNE, use prefix
     key = '/home/prakashlab/Documents/fstack/codex-20220324-keys.json'
     gcs_project = 'soe-octopi'
     src = "gs://octopi-codex-data"
-    dst = "gs://octopi-codex-data-processing/TEST_1HDcVekx4mrtl0JztCXLn9xN6GOak4AU" #"./test"
+    dst = "./tstflat" #"gs://octopi-codex-data-processing/TEST_1HDcVekx4mrtl0JztCXLn9xN6GOak4AU" #"./test"
     exp = ["20220601_20x_75mm"]
     cha = ["Fluorescence_405_nm_Ex", "Fluorescence_488_nm_Ex", "Fluorescence_561_nm_Ex", "Fluorescence_638_nm_Ex"]
     typ = "bmp"
@@ -31,13 +32,13 @@ def main():
     subtract_background = False
     use_color = False
     imin = 0    # view positions
-    imax = 5
+    imax = 4
     jmin = 0
-    jmax = 5
+    jmax = 7
     kmin = 0
-    kmax = 9
-    cmin = 0
-    cmax = 11
+    kmax = 0
+    cmin = 3
+    cmax = 9
     crop_start = 0 # crop settings
     crop_end = 3000
     WSize = 9     # Focus stacking params
@@ -116,10 +117,10 @@ def main():
         args.sth   = sth
         args.verbose = verbose
     
-    perform_stack(colors, args.use_gpu, args.key, args.gcs_project, args.src, args.exp, args.cha, args.dst, args.typ, args.imin, args.imax, args.jmin, args.jmax, args.kmin, args.kmax, args.cmin, args.cmax, args.crop_start, args.crop_end, args.remove_background, args.subtract_background, args.invert_contrast, args.shift_registration, args.use_color, args.WSize, args.alpha, args.sth, args.verbose)
+    perform_stack(colors, prefix, args.use_gpu, args.key, args.gcs_project, args.src, args.exp, args.cha, args.dst, args.typ, args.imin, args.imax, args.jmin, args.jmax, args.kmin, args.kmax, args.cmin, args.cmax, args.crop_start, args.crop_end, args.remove_background, args.subtract_background, args.invert_contrast, args.shift_registration, args.use_color, args.WSize, args.alpha, args.sth, args.verbose)
     return
     
-def perform_stack(colors, use_gpu, key, gcs_project, src, exp, cha, dst, typ, imin, imax, jmin, jmax, kmin, kmax, cmin, cmax, crop_start, crop_end, remove_background, subtract_background, invert_contrast, shift_registration, use_color, WSize, alpha, sth, verbose):
+def perform_stack(colors, prefix, use_gpu, key, gcs_project, src, exp, cha, dst, typ, imin, imax, jmin, jmax, kmin, kmax, cmin, cmax, crop_start, crop_end, remove_background, subtract_background, invert_contrast, shift_registration, use_color, WSize, alpha, sth, verbose):
     a = crop_end - crop_start
     # Initialize arguments
     error = 0
@@ -195,20 +196,30 @@ def perform_stack(colors, use_gpu, key, gcs_project, src, exp, cha, dst, typ, im
                     df = pd.read_csv(f)
         except:
             print(path + " cannot be opened")
-            break # exit this loop
+             # exit this loop
         if verbose:
             print(path + " opened")
             n = df.shape[0] # n is the number of cycles
             print("n cycles = " + str(n))
-        
-        
+            for i in range(n):
+                print(df.loc[i, 'Acquisition_ID'])
+        if len(prefix) > 0:
+            if is_remote:
+                loc = [a.split('/')[-1] for a in fs.ls(src + '/' + exp_i) if a.split('/')[-1][0:len(prefix)] == prefix ]
+            else:  
+                loc = [a.split('/')[-1] for a in os.listdir(src + '/' + exp_i) if a.split('/')[-1][0:len(prefix)] == prefix ]
+            
         for i, j in product(range(imin, imax+1), range(jmin, jmax+1)):
             if debugging and (i > imin + 2 or j > jmin + 2):
                 break
             for c in range(cmin, cmax+1):
                 if debugging and c >= cmin+4:
                     break
-                id = df.loc[c, 'Acquisition_ID']
+                if len(prefix) > 0:
+                    id = loc[c]
+                else:
+                    id = df.loc[c, 'Acquisition_ID']
+                    
                 if verbose:
                     print(id)  
                 for l in range(len(cha)):
@@ -224,18 +235,27 @@ def perform_stack(colors, use_gpu, key, gcs_project, src, exp, cha, dst, typ, im
                         if verbose:
                             print(k)
                         filename = id + '/0/' + str(i) + '_' + str(j) + '_' + str(k+kmin) + '_' + channel + '.' + typ
-                        if is_remote:
-                            I = imread_gcsfs(fs,src + '/' + exp_i + '/'+ filename)
-                        else:
-                            I = cv2.imread(src + '/' + exp_i + '/'+ filename)
+                        target = src + '/' + exp_i + '/'+ filename
+                        print(target)
+                        try:
+                            if is_remote:
+                                I = imread_gcsfs(fs, target)
+                            else:
+                                I = cv2.imread(target)
+                        except:
+                            print("Data missing")
+                            I = np.zeros((a,a))
                         # crop the image
                         I = I[crop_start:crop_end,crop_start:crop_end]
                         if use_color:
                             I_zs[k,:,:,:] = I
                         else:
                             I_zs[k,:,:] = I
+                    if (kmax+1-kmin) > 4:
+                        I = fstack_images(I_zs, list(range(kmin, kmax+1)), verbose=verbose, WSize=WSize, alpha=alpha, sth=sth)
+                    else:
+                        I = I_zs[int((kmax+1-kmin)/2),:,:]
 
-                    I = fstack_images(I_zs, list(range(kmin, kmax+1)), verbose=verbose, WSize=WSize, alpha=alpha, sth=sth)
                     if remove_background:
                         selem = disk(30) 
                         I = white_tophat(I,selem)
@@ -255,7 +275,11 @@ def perform_stack(colors, use_gpu, key, gcs_project, src, exp, cha, dst, typ, im
                         else:
                             if l == 0:
                                 # compare the first channel of later cycles to the first channel of the first cycle
-                                shift, __, __ = phase_cross_correlation(I, I0, upsample_factor = 5)
+                                try:
+                                    shift, __, __ = phase_cross_correlation(I, I0, upsample_factor = 5)
+                                except:
+                                    shift = [0,0]
+                                    print("Phase cross correlation failed")
                                 if verbose:
                                     print(shift)
                                 # create the transform

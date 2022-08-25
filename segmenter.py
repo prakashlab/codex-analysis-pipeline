@@ -9,7 +9,7 @@ import imageio
 
 def main():
     # root_dir needs a trailing slash (i.e. /root/dir/)
-    root_dir = "/home/prakashlab/Documents/kmarx/pipeline/test/"# 'gs://octopi-codex-data-processing/TEST_1HDcVekx4mrtl0JztCXLn9xN6GOak4AU/'#
+    root_dir = "/home/prakashlab/Documents/kmarx/pipeline/tstflat/"# 'gs://octopi-codex-data-processing/TEST_1HDcVekx4mrtl0JztCXLn9xN6GOak4AU/'#
     exp_id   = "20220601_20x_75mm/"
     channel =  "Fluorescence_405_nm_Ex" # only run segmentation on this channel
     cpmodel = "gs://octopi-codex-data-processing/TEST_1HDcVekx4mrtl0JztCXLn9xN6GOak4AU/cellposemodel"
@@ -68,6 +68,9 @@ def run_seg(root_dir, exp_id, channel, cpmodel, channels, key, use_gpu, gcs_proj
     # segment one at a time - gpu bottleneck
     for idx, im in enumerate(imgs):
         print(idx)
+        if np.max(im) == 0:
+            print("no data")
+            continue
         imlist  = [im]
         masks, flows, styles = model.eval(imlist, diameter=None, channels=channels)
         diams = 0
