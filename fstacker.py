@@ -17,12 +17,12 @@ def main():
     
     CLI = False     # set to true for CLI, if false, the following constants are used:
     use_gpu = True  # use GPU accelerated focus stacking
-    prefix = "20x"  # if index.csv DNE, use prefix
+    prefix = ""     # if index.csv DNE, use prefix, else keep empty
     key = '/home/prakashlab/Documents/fstack/codex-20220324-keys.json'
     gcs_project = 'soe-octopi'
     src = "gs://octopi-codex-data"
-    dst = "./tstflat" #"gs://octopi-codex-data-processing/TEST_1HDcVekx4mrtl0JztCXLn9xN6GOak4AU" #"./test"
-    exp = ["20220601_20x_75mm"]
+    dst = '/media/prakashlab/T7/' #"gs://octopi-codex-data-processing" #"./test"
+    exp = ["20220823_20x_PBMC_2"]
     cha = ["Fluorescence_405_nm_Ex", "Fluorescence_488_nm_Ex", "Fluorescence_561_nm_Ex", "Fluorescence_638_nm_Ex"]
     typ = "bmp"
     colors = {'0':[255,255,255],'1':[255,200,0],'2':[30,200,30],'3':[0,0,255]} # BRG
@@ -32,13 +32,13 @@ def main():
     subtract_background = False
     use_color = False
     imin = 0    # view positions
-    imax = 4
+    imax = 19
     jmin = 0
-    jmax = 7
-    kmin = 0
-    kmax = 0
-    cmin = 3
-    cmax = 9
+    jmax = 19
+    kmin = 1
+    kmax = 1
+    cmin = 0
+    cmax = 14
     crop_start = 0 # crop settings
     crop_end = 3000
     WSize = 9     # Focus stacking params
@@ -213,6 +213,9 @@ def perform_stack(colors, prefix, use_gpu, key, gcs_project, src, exp, cha, dst,
             if debugging and (i > imin + 2 or j > jmin + 2):
                 break
             for c in range(cmin, cmax+1):
+                if c >= 1:
+                    kmin = 0
+                    kmax = 0
                 if debugging and c >= cmin+4:
                     break
                 if len(prefix) > 0:
@@ -299,8 +302,9 @@ def perform_stack(colors, prefix, use_gpu, key, gcs_project, src, exp, cha, dst,
                             I = 255 - I
                     
                     # save images 
-                    fname = str(l) + '_' + channel + '.png'
-                    savepath = dst + '/' + exp_i + '/' + str(i) + '/' + str(j) + '/' + str(c) + '/'
+                    fname =  str(i) + '_' + str(j) + '_f_' + channel + '.png'
+                    savepath = dst + exp_i + '/' + id + '/0/'
+                    print(savepath+fname)
                     if dst[0:5] == 'gs://':
                         cv2.imwrite(fname, I)
                         fs.put(fname, savepath+fname)
