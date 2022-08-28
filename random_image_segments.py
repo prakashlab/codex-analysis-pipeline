@@ -59,7 +59,7 @@ def get_rand(root_dir, dest_dir, exp_id, channel, zstack, n_rand, key, nsub, gcs
         yslice = random.choice(range(nsub))
         im = im[x*xslice:(x*xslice + x), y*yslice:(y*yslice + y)]
 
-        fname = savepath + impath.split('/')[-1]
+        fname = savepath + "s_" + impath.split('/')[-1]
 
         cv2.imwrite(fname, im)
 
