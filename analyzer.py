@@ -6,31 +6,33 @@ import pandas as pd
 import gcsfs
 import imageio
 import os
+from natsort import natsorted
 
 def main():
-    # Cycle indices are 0-11, we can choose a subset of the cycles to analyze
+    # Cycle indices are 0-12, we can choose a subset of the cycles to analyze
     start_idx = 0 #2
-    end_idx   = 1 #11
+    end_idx   = 14 #11
     # 4 channels
     n_ch      = 4
     # How many pixels around the mask to expand
-    expansion = 7   
+    expansion = 9   
     # root_dir needs a trailing slash (i.e. /root/dir/)
-    root_dir = 'gs://octopi-codex-data-processing/TEST_1HDcVekx4mrtl0JztCXLn9xN6GOak4AU/' #"/home/prakashlab/Documents/kmarx/pipeline/test/" #'gs://octopi-codex-data-processing/TEST_1HDcVekx4mrtl0JztCXLn9xN6GOak4AU/'
-    exp_id   = "20220601_20x_75mm/"
+    root_dir = '/media/prakashlab/T7/'#'gs://octopi-codex-data-processing/' #"/home/prakashlab/Documents/kmarx/pipeline/tstflat/"# 'gs://octopi-codex-data-processing/TEST_1HDcVekx4mrtl0JztCXLn9xN6GOak4AU/'#
+    exp_id   = "20220823_20x_PBMC_2/"
+    zstack  = 'f' # select which z to run segmentation on. set to 'f' to select the focus-stacked
     channel =  "Fluorescence_405_nm_Ex" # use only this channel as masks
     key = '/home/prakashlab/Documents/fstack/codex-20220324-keys.json'
     gcs_project = 'soe-octopi'
-    out = "gs://octopi-codex-data-processing/TEST_1HDcVekx4mrtl0JztCXLn9xN6GOak4AU/meanbright_" + str(expansion) + ".csv"
+    out = "/media/prakashlab/T7/" + exp_id + "/meanbright_" + str(expansion) + ".csv"
     
-    run_analysis(start_idx, end_idx, n_ch, expansion, root_dir, exp_id, channel, key, gcs_project, out)
+    run_analysis(start_idx, end_idx, n_ch, zstack, expansion, root_dir, exp_id, channel, key, gcs_project, out)
 
-def run_analysis(start_idx, end_idx, n_ch, expansion, root_dir, exp_id, channel, key, gcs_project, out):
+def run_analysis(start_idx, end_idx, n_ch, zstack, expansion, root_dir, exp_id, channel, key, gcs_project, out):
     root_remote = False
     if root_dir[0:5] == 'gs://':
         root_remote = True
     out_remote = False
-    out_placeholder = "./temp.csv"
+    out_placeholder = "temp.csv"
     out_path = out
     if out[0:5] == 'gs://':
         out_remote = True
@@ -40,7 +42,7 @@ def run_analysis(start_idx, end_idx, n_ch, expansion, root_dir, exp_id, channel,
         fs = gcsfs.GCSFileSystem(project=gcs_project,token=key)
 
     print("Reading .npy paths")
-    path = root_dir + exp_id  + "**/**/**/**" + channel + "_seg.npy"
+    path = root_dir + exp_id + "**/0/**_" + zstack + "_" + channel + '_seg.npy'
     print(path)
     if root_remote:
         allpaths = [p for p in fs.glob(path, recursive=True)]
@@ -49,16 +51,12 @@ def run_analysis(start_idx, end_idx, n_ch, expansion, root_dir, exp_id, channel,
     # remove duplicates
     allpaths = list(dict.fromkeys(allpaths))
     allpaths.sort()
-    allpaths = np.array(allpaths)
+    npypaths = np.array(allpaths)
+    # only the first cycle is segmented - nothing more to do
 
-    # get cycle from image paths
-    c = np.array([int(i.split('/')[-2]) for i in allpaths])
-    # only consider the earliest cycle
-    npypaths = allpaths[c == start_idx]
-
-    # # repeat to get png paths
+    # repeat to get png paths
     print("Reading .png paths")
-    path = root_dir + exp_id  + "**/**/**/**.png"
+    path = root_dir + exp_id + "**/0/**_" + zstack  + '**.png'
     print(path)
     if root_remote:
         allpaths = [p for p in fs.glob(path, recursive=True)]
@@ -69,15 +67,17 @@ def run_analysis(start_idx, end_idx, n_ch, expansion, root_dir, exp_id, channel,
     allpaths.sort()
     allpaths = np.array(allpaths)
     # remove images out of cycle bounds
-    c = np.array([int(i.split('/')[-2]) for i in allpaths])
-    pngpaths = allpaths[(c >= start_idx) * (c <= end_idx)]
+    all_cycles = natsorted(list(dict.fromkeys([i.split('/')[-3] for i in allpaths])))
+    target_cycles = all_cycles[start_idx:end_idx+1]
+    pngpaths = [p for p in allpaths if p.split('/')[-3] in target_cycles]
+    print(str(len(pngpaths)) + " images to analyze")
 
     # make a dataframe
     header = ['i', 'j', 'x', 'y', 'sz_msk', 'sz_nuc']
     for cy in range(start_idx, end_idx + 1,1):
         for ch in range(0, n_ch):
             header.append(str(cy) + "_" + str(ch))
-
+    print("header: " + str(len(header)))
     # process one at a time
     placeholder = "./placeholder_seg.npy"
     print(str(len(npypaths)) + " masks")
@@ -88,13 +88,16 @@ def run_analysis(start_idx, end_idx, n_ch, expansion, root_dir, exp_id, channel,
         #   1 column for each cycle x channel
         print("Loading mask " + path)
         splitpath = path.split("/")
-        ch = int(splitpath[-1].split("_")[0])
-        cy = int(splitpath[-2])
-        j  = int(splitpath[-3])
-        i  = int(splitpath[-4])
-        pattern = '\/' + str(i) + '\/' + str(j) + '\/\d+\/\d+_.*\.png'
+        cy = splitpath[-3]
+        splitpath = splitpath[-1].split('_')
+        ch = int(splitpath[4])
+        j  = int(splitpath[1])
+        i  = int(splitpath[0])
+        # only get images 
+        pattern = "\/" + str(i) + "_" + str(j) + "_" + zstack + ".*\.png"
         imgpath = [p for p in pngpaths if re.search(pattern, p)]
-        imgpath.sort()
+        imgpath = natsorted(imgpath)
+        print(str(len(imgpath)) + " images in this (i,j)")
         # preload each image
         if root_remote:
             imgs = np.array([imread_gcsfs(fs, path) for path in imgpath])
@@ -148,6 +151,7 @@ def run_analysis(start_idx, end_idx, n_ch, expansion, root_dir, exp_id, channel,
             row = row + sz + brightness
             df.loc[len(df.index)] = row
         # append to csv
+        print("writing")
         df.to_csv(out_path, mode='a')
         # delete .npy if remote
         if root_remote:

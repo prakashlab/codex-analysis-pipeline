@@ -6,21 +6,21 @@ import os
 import gcsfs
 import imageio
 from natsort import natsorted
-import re
 
 def main():
     # root_dir needs a trailing slash (i.e. /root/dir/)
-    root_dir = '/media/prakashlab/T7/new_data/'#'gs://octopi-codex-data-processing/' #"/home/prakashlab/Documents/kmarx/pipeline/tstflat/"# 'gs://octopi-codex-data-processing/TEST_1HDcVekx4mrtl0JztCXLn9xN6GOak4AU/'#
-    exp_id   = "20220822_20x_intestines/"
+    root_dir = '/media/prakashlab/T7/'#'gs://octopi-codex-data-processing/' #"/home/prakashlab/Documents/kmarx/pipeline/tstflat/"# 'gs://octopi-codex-data-processing/TEST_1HDcVekx4mrtl0JztCXLn9xN6GOak4AU/'#
+    exp_id   = "20220823_20x_PBMC_2/"
     channel =  "Fluorescence_405_nm_Ex" # only run segmentation on this channel
-    cpmodel = "/home/prakashlab/Documents/newcodex/train/models/cellpose_residual_on_style_on_concatenation_off_train_2022_08_25_11_46_07.357844"
+    zstack  = 'f' # select which z to run segmentation on. set to 'f' to select the focus-stacked
+    cpmodel = "./cpmodel_20220827"
     channels = [0,0] # grayscale only
     key = '/home/prakashlab/Documents/fstack/codex-20220324-keys.json'
     use_gpu = True
     gcs_project = 'soe-octopi'
-    run_seg(root_dir, exp_id, channel, cpmodel, channels, key, use_gpu, gcs_project)
+    run_seg(root_dir, exp_id, channel, zstack, cpmodel, channels, key, use_gpu, gcs_project)
 
-def run_seg(root_dir, exp_id, channel, cpmodel, channels, key, use_gpu, gcs_project):
+def run_seg(root_dir, exp_id, channel, zstack, cpmodel, channels, key, use_gpu, gcs_project):
     # Load remote files if necessary
     root_remote = False
     if root_dir[0:5] == 'gs://':
@@ -39,8 +39,8 @@ def run_seg(root_dir, exp_id, channel, cpmodel, channels, key, use_gpu, gcs_proj
         cpmodel = modelpath
 
     print("Reading image paths")
-    # filter - only look for specified channel and cycle 0
-    path = root_dir + exp_id + "**/**/**/**" + channel + '.png'
+    # filter - only look for specified channel, z, and cycle 0
+    path = root_dir + exp_id + "**/0/**_" + zstack + "_" + channel + '.png'
     print(path)
     if root_remote:
         allpaths = [p for p in fs.glob(path, recursive=True) if p.split('/')[-2] == '0']
@@ -49,7 +49,9 @@ def run_seg(root_dir, exp_id, channel, cpmodel, channels, key, use_gpu, gcs_proj
     # remove duplicates
     imgpaths = list(dict.fromkeys(allpaths))
     imgpaths = np.array(natsorted(imgpaths))
-    print(str(len(imgpaths)) + " images to segment")
+    ch0 = imgpaths[0].split('/')[-3]
+    segpaths = [path for path in imgpaths if ch0 in path]
+    print(str(len(segpaths)) + " images to segment")
 
     print("Starting cellpose")
     # start cellpose
@@ -59,7 +61,7 @@ def run_seg(root_dir, exp_id, channel, cpmodel, channels, key, use_gpu, gcs_proj
     placeholder = "./placeholder.png"
 
     # segment one at a time - gpu bottleneck
-    for idx, impath in enumerate(imgpaths):
+    for idx, impath in enumerate(segpaths):
         print(str(idx) + ": " + impath)
         if root_remote:
             im = np.array(imread_gcsfs(fs, impath), dtype=np.uint8)
