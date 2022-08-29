@@ -35,7 +35,7 @@ Future revisions will include .zarr support (more compression options, faster re
 
 ### fstacker usage
 
-#### theory of operation
+#### fstacker theory of operation
 
 Focus-stack every imageset from a codex experiment. Suppose you have the following file structure:
 
@@ -52,9 +52,9 @@ Focus-stack every imageset from a codex experiment. Suppose you have the followi
     - `0`
       - identical structure to `exp_id_1`
 
-For each experiment ID, for each channel `Fluorescence_NNN_nm_Ex`, and for each i index `i` and j index `j` in the range, `fstacker.py` generates an image called "`i`\_`j`\_f\_Fluorescence\_`NNN`\_nm_Ex.png" image (with different values for `i`, `j`, and `NNN` for each image stacked) and saves it to either the `src` directory or a different directory of your choosing.
+For each experiment ID, for each channel `Fluorescence_NNN_nm_Ex`, and for each i index `i` and j index `j` in the range, `fstacker.py` generates an image called "`i`\_`j`\_f_Fluorescence\_`NNN`\_nm_Ex.png" image (with different values for `i`, `j`, and `NNN` for each image stacked) and saves it to either the `src` directory or a different directory of your choosing.
 
-#### set parameters
+#### set fstacker parameters
 
 there are many parameters to set which images get focus stacked and where to save them. here's the complete list of the parameters and what they mean:
 
@@ -82,7 +82,7 @@ there are many parameters to set which images get focus stacked and where to sav
 - `sth`: integer. Parameter for blending z stacks. 13 is a good value.
 - `verbose`: boolean. Set `True` to print extra details during operation (good for determining whether GPU stacking is faster than CPU)
 
-#### run it
+#### run fstacker
 
 1. to use fstacker as a script, set `CLI = TRUE` in `main()` in `fstacker.py` and set the constants. Then, run the file
 2. to use the command line interface, set `CLI = TRUE` in `main()` in `fstacker.py`. Navigate to the directory `fstacker.py` is in, activate the conda environment if necessary, and run `python -m fstacker --help` to see all the flags and how to set them
@@ -96,7 +96,7 @@ cellpose uses machine learning models to segment the nuclei (405 nm channel). In
 #### set parameters
 
 - `root_dir`: string. local or remote path to where the images are stored
-- `dest_dir` : string. local path to store the randomly selected and cropped images. this should be different from `root_dir` to make it easier to work with them. 
+- `dest_dir` : string. local path to store the randomly selected and cropped images. this should be different from `root_dir` to make it easier to work with them.
 - `exp_id`: string. experiment ID to get the images from. see fstacker theory of operation for more detail.
 - `channel`: string. image channel to randomly select from. see fstacker theory of operation for more detail.
 - `zstack`: string. if you ran `fstacker.py` and want to use the focus-stacked images, set this value to `"f"`. otherwise set it to the z stack you want to use (for example, if z=5 is in focus for all cells across all images, you can set `zstack="5"` and those images will be utilized)
@@ -111,13 +111,13 @@ cellpose uses machine learning models to segment the nuclei (405 nm channel). In
 
 ### segmenter usage
 
-#### theory of operation
+#### segmenter theory of operation
 
 cells don't move between cycles so we only need to segment one cycle for each (i,j) view. We generally choose to segment the nuclear channel because it is brightest. The script first loads all the channel paths, sorts them to find the 0th channel, then filters the image paths so only the 0th channel images are loaded. Images are then segmented one at a time. In principle, Cellpose can work faster by segmenting multi-image batches but in my experience not all GPUs can handle segmenting multiple images. Cellpose then saves a .npy file with the masks to the destination directory.
 
 if you are having trouble installing cellpose, try uninstalling all other python packages that use QTpy (e.g. cv2), install cellpose, then reinstall everthing you uninstalled. If you are using CUDA, ensure your CUDA version is compatible with your version of torch.
 
-#### set parameters
+#### set segmenter parameters
 
 - `root_dir`: string. local or remote path to where the images are stored
 - `exp_id`: string. experiment ID to get the images from. see fstacker theory of operation for more detail.
@@ -129,20 +129,20 @@ if you are having trouble installing cellpose, try uninstalling all other python
 - `use_gpu`: boolean. Set to `True` to try segmenting using the GPU.
 - `channels`: list of ints. Which channel to run segmentation on. Set to `[0,0]` for the monochrome channel
 
-#### run it
+#### run segmenter
 
 1. to use segmenter as a script, set the constants and run the file. Note that it takes a pretrained model as a parameter; you can change it to one of the built-in pretrained models or set a path to a custom pretrained model
 2. cellpose already has a CLI; `segmenter.py` itself does not have a CLI
 
 ### analyzer usage
 
-#### theory of operation
+#### analyzer theory of operation
 
 We assume cell positions don't change between cycles and we can mask the cells by expanding the nucleus masks from `segmenter.py`. We have a mask for each (i,j) view; for each view we load all the images across all cycles at that view and load the nucleus mask. The mask is expanded to mask the entire cell. Then for each cell in the view, for each channel, for each cycle we calculate the average brightness of the cell and store it in a csv.
 
 The CSV columns are cell index in a given view, the i index, j index, x position in the image, y position in the image, the number of pixels in the expanded mask, and the number of pixels in the nuclear mask. Then, there is a column for each element in the cartesian product of channel index and cycle index. The header is re-printed in the csv and the cell index resets for each view.
 
-#### set parameters
+#### set analyzer parameters
 
 - `start_idx`, `end_idx`: integers. Select a range of cycles to analyze
 - `n_ch`: integer. Number of channels to analyze
@@ -155,7 +155,7 @@ The CSV columns are cell index in a given view, the i index, j index, x position
 - `gcs_project`: string. Set this to the Google Cloud Storage project name if you are connecting to GCS. Otherwise, it doesn't matter.
 - `out`: string. Path to store the csv. Local or remote path.
 
-#### run it
+#### run analyzer
 
 1. to use analyzer as a script, set the constants and run the file
 2. there currently is no CLI version
