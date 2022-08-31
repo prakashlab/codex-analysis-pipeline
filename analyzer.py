@@ -50,7 +50,7 @@ def run_analysis(start_idx, end_idx, n_ch, zstack, expansion, root_dir, exp_id, 
         allpaths = [p for p in glob.iglob(path, recursive=True)]
     # remove duplicates
     allpaths = list(dict.fromkeys(allpaths))
-    allpaths.sort()
+    allpaths = natsorted(allpaths)
     npypaths = np.array(allpaths)
     # only the first cycle is segmented - nothing more to do
 
@@ -64,7 +64,7 @@ def run_analysis(start_idx, end_idx, n_ch, zstack, expansion, root_dir, exp_id, 
         allpaths = [p for p in glob.iglob(path, recursive=True)]
     # remove duplicates
     allpaths = list(dict.fromkeys(allpaths))
-    allpaths.sort()
+    allpaths = natsorted(allpaths)
     allpaths = np.array(allpaths)
     # remove images out of cycle bounds
     all_cycles = natsorted(list(dict.fromkeys([i.split('/')[-3] for i in allpaths])))
