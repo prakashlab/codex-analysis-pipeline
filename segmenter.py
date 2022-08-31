@@ -50,7 +50,9 @@ def run_seg(root_dir, exp_id, channel, zstack, cpmodel, channels, key, use_gpu, 
     imgpaths = list(dict.fromkeys(allpaths))
     imgpaths = np.array(natsorted(imgpaths))
     ch0 = imgpaths[0].split('/')[-3]
+    ch1 = imgpaths[1].split('/')[-3]
     segpaths = [path for path in imgpaths if ch0 in path]
+    segpaths_alt = [path for path in imgpaths if ch1 in path]
     print(str(len(segpaths)) + " images to segment")
 
     print("Starting cellpose")
@@ -59,6 +61,7 @@ def run_seg(root_dir, exp_id, channel, zstack, cpmodel, channels, key, use_gpu, 
     print("Starting segmentation")
 
     placeholder = "./placeholder.png"
+    dest = root_dir + exp_id + "segmentation/"
 
     # segment one at a time - gpu bottleneck
     for idx, impath in enumerate(segpaths):
@@ -67,20 +70,32 @@ def run_seg(root_dir, exp_id, channel, zstack, cpmodel, channels, key, use_gpu, 
             im = np.array(imread_gcsfs(fs, impath), dtype=np.uint8)
         else:
             im = np.array(io.imread(impath), dtype=np.uint8)
-        if np.max(im) == 0:
-            print("no data")
-            continue
         # normalize
         im = im - np.min(im)
         im = np.uint8(255 * np.array(im, dtype=np.float64)/float(np.max(im)))
-
+        # run segmentation
         masks, flows, styles = model.eval(im, diameter=None, channels=channels)
+        # If we didn't get any cells, try again
+        if np.max(masks) == 0:
+            impath = segpaths_alt[idx]
+            print("No cells found. Trying again with a different cycle")
+            print(str(idx) + ": " + impath)
+            if root_remote:
+                im = np.array(imread_gcsfs(fs, impath), dtype=np.uint8)
+            else:
+                im = np.array(io.imread(impath), dtype=np.uint8)
+            # normalize
+            im = im - np.min(im)
+            im = np.uint8(255 * np.array(im, dtype=np.float64)/float(np.max(im)))
+            # run segmentation
+            masks, flows, styles = model.eval(im, diameter=None, channels=channels)
+
         diams = 0
         if root_remote:
             savepath = placeholder
         else:
-            savepath = impath
-        # actually run the segmentation
+            savepath = dest + impath.split('/')[-1]
+        # save the data
         io.masks_flows_to_seg(im, masks, flows, diams, savepath, channels)
 
         # move the .npy to remote if necessary

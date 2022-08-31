@@ -42,7 +42,7 @@ def run_analysis(start_idx, end_idx, n_ch, zstack, expansion, root_dir, exp_id, 
         fs = gcsfs.GCSFileSystem(project=gcs_project,token=key)
 
     print("Reading .npy paths")
-    path = root_dir + exp_id + "**/0/**_" + zstack + "_" + channel + '_seg.npy'
+    path = root_dir + exp_id + "segmentation/**_" + zstack + "_" + channel + '_seg.npy'
     print(path)
     if root_remote:
         allpaths = [p for p in fs.glob(path, recursive=True)]
