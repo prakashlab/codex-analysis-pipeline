@@ -118,10 +118,10 @@ def make_zoom(parameters, make_viewer, key, gcs_project, src, dst, exp_id, cha, 
             print(savepath+fname)
             if out_remote:
                 vimgs_I.dzsave(fname, tile_size=1024, suffix='.jpg[Q=95]')
-
-                cv2.imwrite(fname, I)
-                fs.put(fname, savepath+fname)
-                os.remove(fname)
+                fs.put(fname+'.dzi', savepath+fname+'.dzi')
+                fs.put(fname + "_files", savepath + fname + "_files", recursive=True)
+                os.remove(fname + '.dzi')
+                shutil.rmtree(fname + "_files")
             else:
                 os.makedirs(savepath, exist_ok=True)
                 vimgs_I.dzsave(savepath+fname, tile_size=1024, suffix='.jpg[Q=95]')

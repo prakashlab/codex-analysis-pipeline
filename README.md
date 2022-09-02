@@ -24,12 +24,18 @@ Future revisions will include .zarr support (more compression options, faster re
 ### segmentation
 
 - `requirements-segment.txt`: see `requirements-fstack.txt` description
-- `segmenter.py`: segment nuclei using cellpose using a pretrained model. Use the cellpose gui to create the model. `segmenter.py` assumes a folder and file structure created by `fstacker.py`.
+- `segmenter.py`: segment nuclei using cellpose using a pretrained model. Use the cellpose gui to create the model.
 
 ### analysis
 
 - `requirements-analyze.txt`: see `requirements-fstack.txt` description
 - `analyzer.py`: measure the size and average brightness of each cell in each channel and save as a csv. `analyzer.py` assumes a folder and file structure created by `segmenter.py`.
+
+### deepzoom
+
+- `reqeirements_deepzoom.txt`: see `requirements-fstack.txt` description
+- `deepzoom.py`: make a deepzoom image and optionally make a web viewer for it. If you are making a web viewer, you must manually copy the openseadragon folder to the same directory as the `all_viewer.html` document.
+- openseadragon: this folder contains the files for the deepzoom web viewer.
 
 ## Guides
 
@@ -158,4 +164,31 @@ The CSV columns are cell index in a given view, the i index, j index, x position
 #### run analyzer
 
 1. to use analyzer as a script, set the constants and run the file
+2. there currently is no CLI version
+
+### deepzoom usage
+
+#### deepzoom theory of operation
+
+It is useful to have a display showing the entire view for each channel. `deepzoom.py` takes the experiment ID and list of cycles as arguments and makes a deepzoom for each channel as an output. There is some overlap between adjacent views and `deepzoom.py` naively crops the image a fixed amount to remove the overlap. It also can generate an html file to make a web viewer for the deepzoom image.
+
+#### set deepzoom parameters
+
+- `parameters['crop_x0']`: int, how much to crop off along the x axis. Should be roughtly 1/30 the length of the x dimension
+- `parameters['crop_x1']`: int, where to stop cropping. Should be roughly xmax \* (29/30)
+- `parameters['crop_y0']`: int, same as `crop_x0` but for the y axis
+- `parameters['crop_y1']`: int, same as `crop_x1` but for the y axis
+- `make_viewer`: boolean, set `True` to generate an html file for viewing
+- `key`: string, If you are connecting to a Google Cloud File Storage, set this to the local path to the authentication token .json.
+- `gcs_project`: string. Set this to the Google Cloud Storage project name if you are connecting to GCS. Otherwise, it doesn't matter.
+- `src`: string. local or remote path to where the images are stored
+- `dst`: string. local or remote path to where to save the deepzoom image and html.
+- `exp_id`: string. experiment ID to get the images from. see fstacker theory of operation for more detail.
+- `cha`: list of strings. see `fstacker.py` for explanation.
+- `cy`: list of ints. which cycles to make deepzooms of
+- `zstack`: string. if you ran `fstacker.py` and want to use the focus-stacked images, set this value to `"f"`. otherwise set it to the z stack you want to use (for example, if z=5 is in focus for all cells across all images, you can set `zstack="5"` and those images will be utilized)
+
+#### run deepzoom
+
+1. to use deepzoom generator as a script, set the constants and run the file
 2. there currently is no CLI version
