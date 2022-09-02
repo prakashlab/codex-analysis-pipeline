@@ -17,10 +17,10 @@ def main():
     parameters['crop_y0'] = 100
     parameters['crop_y1'] = 2900
     make_viewer = True
-    key = '/home/prakashlab/Documents/fstack/codex-20220324-keys.json'
+    key = '/home/prakashlab/Documents/kmarx/malaria_deepzoom/deepzoom uganda 2022/uganda-2022-viewing-keys.json'
     gcs_project = 'soe-octopi'
     src = "/media/prakashlab/T7/"
-    dst = '/home/prakashlab/Documents/kmarx/openseadragon/disp'
+    dst = 'gs://octopi-malaria-uganda-2022/mSuWcFWwxF5iEVLHIm99RAVvbCIY34nF/'
     exp_id = "20220823_20x_PBMC_2"
     cha = ["Fluorescence_405_nm_Ex", "Fluorescence_488_nm_Ex", "Fluorescence_561_nm_Ex", "Fluorescence_638_nm_Ex"]
     cy = [1]
@@ -42,7 +42,7 @@ def make_zoom(parameters, make_viewer, key, gcs_project, src, dst, exp_id, cha, 
         fs = gcsfs.GCSFileSystem(project=gcs_project,token=key)
     
     # only get the given z slice but get all i, j, ch
-    path = src + exp_id + "**/0/**_" + k + "_**.png"
+    path = src + exp_id + "/**/0/**_" + k + "_**.png"
     print(path)
     if root_remote:
         allpaths = [p for p in fs.glob(path, recursive=True) if p.split('/')[-2] == '0']
@@ -52,6 +52,7 @@ def make_zoom(parameters, make_viewer, key, gcs_project, src, dst, exp_id, cha, 
     imgpaths = list(dict.fromkeys(allpaths))
     imgpaths = np.array(natsorted(imgpaths))
     cycle_names = [i.split('/')[-3] for i in imgpaths]
+    cycle_names = list(dict.fromkeys(cycle_names))
 
     parameters['row_start'] = 0
     parameters['row_end'] = int(imgpaths[-1].split('/')[-1].split('_')[0])
@@ -59,10 +60,10 @@ def make_zoom(parameters, make_viewer, key, gcs_project, src, dst, exp_id, cha, 
     parameters['column_end'] = int(imgpaths[-1].split('/')[-1].split('_')[1])
     w = parameters['column_end'] - parameters['column_start']
     h = parameters['row_end'] - parameters['row_start']
-
     dests = []
     for c in cy:
         for channel in cha:
+            print(channel)
             # vimgs
             vimgs_I = []
             break_flag = False
@@ -97,7 +98,7 @@ def make_zoom(parameters, make_viewer, key, gcs_project, src, dst, exp_id, cha, 
                     I = I * 255
                     
                     # crop image
-                    I = I[ parameters['crop_y0']:parameters['crop_y1'], parameters['crop_x0']:parameters['crop_x1'], : ]
+                    I = I[ parameters['crop_y0']:parameters['crop_y1'], parameters['crop_x0']:parameters['crop_x1']]
 
                     # vips
                     tmp_I = pyvips.Image.new_temp_file(str(i)+'_'+str(j)+ '_' + channel +'.v')
@@ -113,7 +114,7 @@ def make_zoom(parameters, make_viewer, key, gcs_project, src, dst, exp_id, cha, 
 
             print('writing to files')
             # output dir
-            fname =  cycle_names[c] + '_' + k + '_' + channel + '.png'
+            fname =  cycle_names[c] + '_' + k + '_' + channel
             savepath = dst + exp_id + 'deepzooms/'
             print(savepath+fname)
             if out_remote:
@@ -126,10 +127,8 @@ def make_zoom(parameters, make_viewer, key, gcs_project, src, dst, exp_id, cha, 
                 os.makedirs(savepath, exist_ok=True)
                 vimgs_I.dzsave(savepath+fname, tile_size=1024, suffix='.jpg[Q=95]')
             if make_viewer:
-                dest = savepath+fname
-                if out_remote:
-                    # strip "gs:/"
-                    dest = dest[4:]
+                dest = exp_id + 'deepzooms/'+fname + '.dzi'
+                print(dest)
                 dests.append(dest) 
 
     # optionally generate a viewer
@@ -137,7 +136,8 @@ def make_zoom(parameters, make_viewer, key, gcs_project, src, dst, exp_id, cha, 
         filesave = dst
         if out_remote:
             filesave = './temp/'
-        with open(filesave + exp_id + "_all_viewer.html") as f:
+            os.makedirs(filesave, exist_ok=True)
+        with open(filesave + exp_id + "_all_viewer.html", 'w') as f:
             f.write('''<!DOCTYPE html>
 <html>
   <head>
@@ -164,77 +164,60 @@ def make_zoom(parameters, make_viewer, key, gcs_project, src, dst, exp_id, cha, 
       type="text/javascript"
     ></script>
     <script type="text/javascript">
-      paths =
-  ''')
+      paths =''')
             f.write(str(dests))
             f.write(''';
-      function load_view(key) {
-        try {
-          $("#seadragon-viewer").children().remove();
-        } catch (err) {
-          console.log(err.message);
+      var viewer = OpenSeadragon({
+        id: "seadragon-viewer",
+        prefixURL: "openseadragon/images/",
+        tileSources: paths,
+        collectionMode: true,
+        gestureSettingsMouse: { clickToZoom: false },
+      });
+
+      var hitTest = function (position) {
+        var box;
+        var count = viewer.world.getItemCount();
+        for (var i = 0; i < count; i++) {
+          box = viewer.world.getItemAt(i).getBounds();
+          if (
+            position.x > box.x &&
+            position.y > box.y &&
+            position.x < box.x + box.width &&
+            position.y < box.y + box.height
+          ) {
+            return i;
+          }
         }
-        var viewer = OpenSeadragon({
-          id: "seadragon-viewer",
-          prefixUrl: "openseadragon/images/",
-          tileSources: paths,
-          collectionMode: true,
-          gestureSettingsMouse: { clickToZoom: false },
-          collectionRows: 6,
-          collectionTileMargin: 16,
-        });
-        var hitTest = function (position) {
-          var box;
-          var count = viewer.world.getItemCount();
-          for (var i = 0; i < count; i++) {
-            box = viewer.world.getItemAt(i).getBounds();
-            if (
-              position.x > box.x &&
-              position.y > box.y &&
-              position.x < box.x + box.width &&
-              position.y < box.y + box.height
-            ) {
-              return i;
-            }
-          }
 
-          return -1;
-        };
+        return -1;
+      };
 
-        var $viewerElement = $("#seadragon-viewer").on(
-          "mousemove",
-          function (event) {
-            var pixel = new OpenSeadragon.Point(event.clientX, event.clientY);
-            pixel.y -= $viewerElement.position().top;
-            var index = hitTest(viewer.viewport.pointFromPixel(pixel));
-            $(".output").text(
-              index === -1 ? "" : "Image " + paths[index]
-            );
-          }
-        );
+      var $viewerElement = $("#seadragon-viewer").on(
+        "mousemove",
+        function (event) {
+          var pixel = new OpenSeadragon.Point(event.clientX, event.clientY);
+          pixel.y -= $viewerElement.position().top;
+          var index = hitTest(viewer.viewport.pointFromPixel(pixel));
+          $(".output").text(index === -1 ? "" : "Image " + paths[index]);
+        }
+      );
 
-        viewer.addHandler("canvas-click", function (event) {
-          if (!event.quick) {
-            return;
-          }
-
-          var index = hitTest(viewer.viewport.pointFromPixel(event.position));
-          if (index !== -1) {
-            bounds = viewer.world.getItemAt(index).getBounds();
-            expansion = Math.floor(bounds.width / 8);
-            bounds.width = bounds.width + expansion;
-            bounds.height = bounds.height + expansion;
-            bounds.x = Math.max(0, bounds.x - Math.floor(expansion / 2));
-            bounds.y = Math.max(0, bounds.y - Math.floor(expansion / 2));
-            viewer.viewport.fitBounds(bounds);
-          }
-        });
-      }
+      viewer.addHandler("canvas-click", function (event) {
+        if (!event.quick) {
+          return;
+        }
+        var index = hitTest(viewer.viewport.pointFromPixel(event.position));
+        if (index !== -1) {
+          viewer.viewport.fitBounds(viewer.world.getItemAt(index).getBounds());
+        }
+      });
     </script>
   </body>
-</html>''')
+</html>
+''')
         if out_remote:
-            fs.put(filesave + exp_id + "_all_viewer.html", dst + exp_id + "_all_viewer.html")
+            fs.put(filesave + exp_id + "_all_viewer.html", dst + exp_id + "_all_viewer2.html")
             os.remove(filesave + exp_id + "_all_viewer.html")
 
     t1 = time.time()
