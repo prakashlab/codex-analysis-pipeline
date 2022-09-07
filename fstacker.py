@@ -17,13 +17,13 @@ def main():
     
     CLI = False     # set to true for CLI, if false, the following constants are used:
     use_gpu = True  # use GPU accelerated focus stacking
-    prefix = ""     # if index.csv DNE, use prefix, else keep empty
-    key = '/home/prakashlab/Documents/fstack/codex-20220324-keys.json'
+    prefix = "*"     # if index.csv DNE, use prefix, else keep empty
+    key = '/home/prakashlab/Documents/kmarx/malaria_deepzoom/deepzoom uganda 2022/uganda-2022-viewing-keys.json'
     gcs_project = 'soe-octopi'
-    src = "gs://octopi-codex-data/"
-    dst = '/media/prakashlab/T7/' #"gs://octopi-codex-data-processing" #"./test"
-    exp = ["20220823_20x_PBMC_2"]
-    cha = ["Fluorescence_405_nm_Ex", "Fluorescence_488_nm_Ex", "Fluorescence_561_nm_Ex", "Fluorescence_638_nm_Ex"]
+    src = "gs://octopi-malaria-uganda-2022-data/"
+    dst = 'gs://octopi-malaria-uganda-2022/Ju46y9GSqf6DNU2TI6m1BQEo33APSB1n/analysis/' #"gs://octopi-codex-data-processing" #"./test"
+    exp = ['']
+    cha = ["Fluorescence_405_nm_Ex", "BF_LED_matrix_full", "BF_LED_matrix_left_half", "_BF_LED_matrix_low_NA", 'BF_LED_matrix_right_half']
     typ = "bmp"
     colors = {'0':[255,255,255],'1':[255,200,0],'2':[30,200,30],'3':[0,0,255]} # BRG
     remove_background = False
@@ -32,13 +32,13 @@ def main():
     subtract_background = False
     use_color = False
     imin = 0    # view positions
-    imax = 19
+    imax = 9
     jmin = 0
-    jmax = 19
-    kmin = 1
-    kmax = 1
+    jmax = 9
+    kmin = 0
+    kmax = 0
     cmin = 0
-    cmax = 14
+    cmax = 46
     crop_start = 0 # crop settings
     crop_end = 3000
     WSize = 9     # Focus stacking params
@@ -186,7 +186,7 @@ def perform_stack(colors, prefix, use_gpu, key, gcs_project, src, exp, cha, dst,
     for exp_i in exp:
         # load index.csv for each top-level experiment index
         df = None
-        path = src + exp_i + '/' + 'index.csv'
+        path = src + exp_i + 'index.csv'
         try:
             if is_remote:
                 with fs.open(path, 'r' ) as f:
@@ -197,7 +197,7 @@ def perform_stack(colors, prefix, use_gpu, key, gcs_project, src, exp, cha, dst,
         except:
             print(path + " cannot be opened")
              # exit this loop
-        if verbose:
+        if verbose and len(prefix)==0:
             print(path + " opened")
             n = df.shape[0] # n is the number of cycles
             print("n cycles = " + str(n))
@@ -205,14 +205,22 @@ def perform_stack(colors, prefix, use_gpu, key, gcs_project, src, exp, cha, dst,
                 print(df.loc[i, 'Acquisition_ID'])
         if len(prefix) > 0:
             if is_remote:
-                loc = [a.split('/')[-1] for a in fs.ls(src + exp_i) if a.split('/')[-1][0:len(prefix)] == prefix ]
+                if prefix == '*':
+                    loc = [a.split('/')[-1] for a in fs.ls(src + exp_i)]
+                else:
+                    loc = [a.split('/')[-1] for a in fs.ls(src + exp_i) if a.split('/')[-1][0:len(prefix)] == prefix ]
             else:  
-                loc = [a.split('/')[-1] for a in os.listdir(src  + exp_i) if a.split('/')[-1][0:len(prefix)] == prefix ]
-            
+                if prefix == '*':
+                    loc = [a.split('/')[-1] for a in os.listdir(src  + exp_i)]
+                else:
+                    loc = [a.split('/')[-1] for a in os.listdir(src  + exp_i) if a.split('/')[-1][0:len(prefix)] == prefix ]
+        
+        print(loc)
         for i, j in product(range(imin, imax+1), range(jmin, jmax+1)):
             if debugging and (i > imin + 2 or j > jmin + 2):
                 break
             for c in range(cmin, cmax+1):
+                print('c = ' + str(c))
                 if c >= 1:
                     kmin = 0
                     kmax = 0
@@ -226,19 +234,22 @@ def perform_stack(colors, prefix, use_gpu, key, gcs_project, src, exp, cha, dst,
                 if verbose:
                     print(id)  
                 for l in range(len(cha)):
-                    color = colors[str(l)]
+                    if use_color:
+                        color = colors[str(l)]
+                        if l == 0 and invert_contrast:
+                            color = [0,0,0]
+                    
                     channel = cha[l]
                     if verbose:
                         print(channel)
 
-                    if l == 0 and invert_contrast:
-                        color = [0,0,0]
+                    
 
                     for k in range(0, kmax+1-kmin):
                         if verbose:
                             print(k)
                         filename = id + '/0/' + str(i) + '_' + str(j) + '_' + str(k+kmin) + '_' + channel + '.' + typ
-                        target = src + exp_i + '/'+ filename
+                        target = src + exp_i + filename
                         print(target)
                         try:
                             if is_remote:
@@ -253,6 +264,8 @@ def perform_stack(colors, prefix, use_gpu, key, gcs_project, src, exp, cha, dst,
                         if use_color:
                             I_zs[k,:,:,:] = I
                         else:
+                            if len(I.shape)==3:
+                                I = np.squeeze(I[:,:,0])
                             I_zs[k,:,:] = I
                     if (kmax+1-kmin) > 4:
                         I = fstack_images(I_zs, list(range(kmin, kmax+1)), verbose=verbose, WSize=WSize, alpha=alpha, sth=sth)
@@ -265,10 +278,7 @@ def perform_stack(colors, prefix, use_gpu, key, gcs_project, src, exp, cha, dst,
                         
                     if subtract_background:
                         I = I - np.amin(I)
-                    
-                    # normalize
-                    I = I.astype('float')
-                    I = 255*I/np.amax(I)
+
                     # registration across channels
                     if shift_registration:
                         # take the first channel of the first cycle as reference
@@ -303,7 +313,7 @@ def perform_stack(colors, prefix, use_gpu, key, gcs_project, src, exp, cha, dst,
                     
                     # save images 
                     fname =  str(i) + '_' + str(j) + '_f_' + channel + '.png'
-                    savepath = dst + exp_i + '/' + id + '/0/'
+                    savepath = dst + exp_i + id + '/0/'
                     print(savepath+fname)
                     if dst[0:5] == 'gs://':
                         cv2.imwrite(fname, I)
