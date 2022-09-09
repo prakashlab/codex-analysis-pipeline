@@ -9,18 +9,19 @@ import imageio
 
 def main():
     # root_dir needs a trailing slash (i.e. /root/dir/)
-    root_dir = '/media/prakashlab/T7/'#'gs://octopi-codex-data-processing/' #"/home/prakashlab/Documents/kmarx/pipeline/tstflat/"# 'gs://octopi-codex-data-processing/TEST_1HDcVekx4mrtl0JztCXLn9xN6GOak4AU/'#
-    dest_dir = '/media/prakashlab/T7/totrain/' # must be a local path
-    exp_id   = "20220823_20x_PBMC_2/"
-    channel =  "Fluorescence_405_nm_Ex" # only run segmentation on this channel
+    root_dir = 'gs://octopi-malaria-uganda-2022/Ju46y9GSqf6DNU2TI6m1BQEo33APSB1n/analysis/'#'gs://octopi-codex-data-processing/' #"/home/prakashlab/Documents/kmarx/pipeline/tstflat/"# 'gs://octopi-codex-data-processing/TEST_1HDcVekx4mrtl0JztCXLn9xN6GOak4AU/'#
+    dest_dir = '/media/prakashlab/T7/dpc_data/' # must be a local path
+    exp_id   = ""
+    channel =  "BF_LED_matrix_left_dpc" # only run segmentation on this channel
     zstack  = 'f' # select which z to run segmentation on. set to 'f' to select the focus-stacked
-    key = '/home/prakashlab/Documents/fstack/codex-20220324-keys.json'
+    key = '/home/prakashlab/Documents/kmarx/malaria_deepzoom/deepzoom uganda 2022/uganda-2022-viewing-keys.json'
+    ftype = 'png'
     gcs_project = 'soe-octopi'
-    n_rand = 20
-    nsub = 3 # cut into a 3x3 grid and return a random selection
-    get_rand(root_dir, dest_dir, exp_id, channel, zstack, n_rand, key, nsub, gcs_project)
+    n_rand = 30
+    nsub = 6 # cut into a 3x3 grid and return a random selection
+    get_rand(root_dir, dest_dir, exp_id, channel, zstack, n_rand, key, nsub, gcs_project, ftype)
 
-def get_rand(root_dir, dest_dir, exp_id, channel, zstack, n_rand, key, nsub, gcs_project):
+def get_rand(root_dir, dest_dir, exp_id, channel, zstack, n_rand, key, nsub, gcs_project, ftype):
     # Load remote files if necessary
     root_remote = False
     if root_dir[0:5] == 'gs://':
@@ -33,7 +34,7 @@ def get_rand(root_dir, dest_dir, exp_id, channel, zstack, n_rand, key, nsub, gcs
 
     print("Reading image paths")
     # filter - only look for specified channel and cycle 0
-    path = root_dir + exp_id + "**/0/**_" + zstack + "_" + channel + '.png'
+    path = root_dir + exp_id + "**/0/**_" + zstack + "_" + channel + '.' + ftype
     print(path)
     if root_remote:
         allpaths = [p for p in fs.glob(path, recursive=True) if p.split('/')[-2] == '0']
@@ -53,8 +54,8 @@ def get_rand(root_dir, dest_dir, exp_id, channel, zstack, n_rand, key, nsub, gcs
         else:
             im = np.array(cv2.imread(impath), dtype=np.uint8)
         shape = im.shape
-        x = math.floor(shape[0]/3)
-        y = math.floor(shape[1]/3)
+        x = math.floor(shape[0]/nsub)
+        y = math.floor(shape[1]/nsub)
         xslice = random.choice(range(nsub))
         yslice = random.choice(range(nsub))
         im = im[x*xslice:(x*xslice + x), y*yslice:(y*yslice + y)]
