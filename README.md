@@ -17,6 +17,10 @@ Future revisions will include .zarr support (more compression options, faster re
   - Python code in the pipeline/ directory can import fstack with `from fstack_cu import fstack_cu` or `from fstack_cu import fstack_cu_images`
 - `fstacker.py`: perform a focus stack using local (provide path) or remote (using GCSFS) images. This code assumes the existence of an `index.csv` file in the source directory containing cycle names.
 
+### generate DPCs/overlay
+
+- `dpc_overlay.py`: take left-illuminated and right-illuminated images and combine them to improve contrast
+
 ### generate training data
 
 - `random_image_segments.py`: pick a channel and get a random selection of images from that channel across all cycles. This is useful for generating training data if you have to train your own cellpose model.
