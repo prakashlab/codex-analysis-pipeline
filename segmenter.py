@@ -6,21 +6,26 @@ import os
 import gcsfs
 import imageio
 from natsort import natsorted
+import time
 
 def main():
     # root_dir needs a trailing slash (i.e. /root/dir/)
-    root_dir = '/media/prakashlab/T7/'#'gs://octopi-codex-data-processing/' #"/home/prakashlab/Documents/kmarx/pipeline/tstflat/"# 'gs://octopi-codex-data-processing/TEST_1HDcVekx4mrtl0JztCXLn9xN6GOak4AU/'#
-    exp_id   = "20220823_20x_PBMC_2/"
-    channel =  "Fluorescence_405_nm_Ex" # only run segmentation on this channel
+    root_dir = 'gs://octopi-malaria-uganda-2022/Ju46y9GSqf6DNU2TI6m1BQEo33APSB1n/analysis/'#'gs://octopi-codex-data-processing/' #"/home/prakashlab/Documents/kmarx/pipeline/tstflat/"# 'gs://octopi-codex-data-processing/TEST_1HDcVekx4mrtl0JztCXLn9xN6GOak4AU/'#
+    exp_id   = ""
+    channel =  "BF_LED_matrix_dpc" # only run segmentation on this channel
     zstack  = 'f' # select which z to run segmentation on. set to 'f' to select the focus-stacked
-    cpmodel = "./cpmodel_20220827"
+    cpmodel = "./cp_dpc_new"
     channels = [0,0] # grayscale only
-    key = '/home/prakashlab/Documents/fstack/codex-20220324-keys.json'
+    key = '/home/prakashlab/Documents/kmarx/malaria_deepzoom/deepzoom uganda 2022/uganda-2022-viewing-keys.json'
     use_gpu = True
+    segment_all = True
     gcs_project = 'soe-octopi'
-    run_seg(root_dir, exp_id, channel, zstack, cpmodel, channels, key, use_gpu, gcs_project)
+    t0 = time.time()
+    run_seg(root_dir, exp_id, channel, zstack, cpmodel, channels, key, use_gpu, segment_all, gcs_project)
+    t1 = time.time()
+    print(t1-t0)
 
-def run_seg(root_dir, exp_id, channel, zstack, cpmodel, channels, key, use_gpu, gcs_project):
+def run_seg(root_dir, exp_id, channel, zstack, cpmodel, channels, key, use_gpu, segment_all, gcs_project):
     # Load remote files if necessary
     root_remote = False
     if root_dir[0:5] == 'gs://':
@@ -43,16 +48,19 @@ def run_seg(root_dir, exp_id, channel, zstack, cpmodel, channels, key, use_gpu, 
     path = root_dir + exp_id + "**/0/**_" + zstack + "_" + channel + '.png'
     print(path)
     if root_remote:
-        allpaths = [p for p in fs.glob(path, recursive=True) if p.split('/')[-2] == '0']
+        allpaths = [p for p in fs.glob(path, recursive=True)]
     else:
-        allpaths = [p for p in glob.iglob(path, recursive=True) if p.split('/')[-2] == '0']
+        allpaths = [p for p in glob.iglob(path, recursive=True)]
     # remove duplicates
     imgpaths = list(dict.fromkeys(allpaths))
     imgpaths = np.array(natsorted(imgpaths))
-    ch0 = imgpaths[0].split('/')[-3]
-    ch1 = imgpaths[1].split('/')[-3]
-    segpaths = [path for path in imgpaths if ch0 in path]
-    segpaths_alt = [path for path in imgpaths if ch1 in path]
+    if not segment_all:
+        ch0 = imgpaths[0].split('/')[-3]
+        ch1 = imgpaths[1].split('/')[-3]
+        segpaths = [path for path in imgpaths if ch0 in path]
+        segpaths_alt = [path for path in imgpaths if ch1 in path]
+    else:
+        segpaths = imgpaths
     print(str(len(segpaths)) + " images to segment")
 
     print("Starting cellpose")
@@ -76,7 +84,7 @@ def run_seg(root_dir, exp_id, channel, zstack, cpmodel, channels, key, use_gpu, 
         # run segmentation
         masks, flows, styles = model.eval(im, diameter=None, channels=channels)
         # If we didn't get any cells, try again
-        if np.max(masks) == 0:
+        if np.max(masks) == 0 and not segment_all:
             impath = segpaths_alt[idx]
             print("No cells found. Trying again with a different cycle")
             print(str(idx) + ": " + impath)
@@ -89,7 +97,8 @@ def run_seg(root_dir, exp_id, channel, zstack, cpmodel, channels, key, use_gpu, 
             im = np.uint8(255 * np.array(im, dtype=np.float64)/float(np.max(im)))
             # run segmentation
             masks, flows, styles = model.eval(im, diameter=None, channels=channels)
-
+        elif np.max(masks) == 0 and segment_all:
+            continue
         diams = 0
         if root_remote:
             savepath = placeholder
@@ -102,8 +111,9 @@ def run_seg(root_dir, exp_id, channel, zstack, cpmodel, channels, key, use_gpu, 
         if root_remote:
             # generate the local and remote path names
             savepath = savepath.rsplit(".", 1)[0] + "_seg.npy"
-            rpath = imgpaths[idx].rsplit(".", 1)[0] + "_seg.npy"
+            rpath ="gs://" + imgpaths[idx].rsplit(".", 1)[0] + "_seg.npy"
             fs.put(savepath, rpath)
+            print(rpath)
             os.remove(savepath)
 
     if model_remote:
