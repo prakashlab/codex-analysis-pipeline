@@ -17,7 +17,7 @@ Future revisions will include .zarr support (more compression options, faster re
   - Python code in the pipeline/ directory can import fstack with `from fstack_cu import fstack_cu` or `from fstack_cu import fstack_cu_images`
 - `fstacker.py`: perform a focus stack using local (provide path) or remote (using GCSFS) images. This code assumes the existence of an `index.csv` file in the source directory containing cycle names.
 
-### generate DPCs/overlay
+### generate differential phase contrast (DPC)/overlay
 
 - `dpc_overlay.py`: take left-illuminated and right-illuminated images and combine them to improve contrast
 
@@ -96,6 +96,22 @@ there are many parameters to set which images get focus stacked and where to sav
 
 1. to use fstacker as a script, set `CLI = TRUE` in `main()` in `fstacker.py` and set the constants. Then, run the file
 2. to use the command line interface, set `CLI = TRUE` in `main()` in `fstacker.py`. Navigate to the directory `fstacker.py` is in, activate the conda environment if necessary, and run `python -m fstacker --help` to see all the flags and how to set them
+
+### DPC/overlay usage
+
+#### DPC/overlay theory of operation
+
+when imaging, contrast can be improved via differential phase contrast (DPC). This involves imaging cells with light coming from the left and again with light from the right and combining these images.
+
+Overlaying different channels can be useful for data visualization. The fluorescence and flatfield channels are dimmed, overlaid, and rescaled to make full use of the 8 bit range of brightnesses
+
+#### set DPC/overlay parameters
+
+asdfasdfasdf
+
+#### run DPC/overlay
+
+asdfasdf
 
 ### generate training data usage
 
