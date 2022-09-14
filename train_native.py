@@ -41,7 +41,7 @@ def main():
         "augmentation": A.to_dict(transform),
     }
 
-    #perform_training(data_dir, model_root, epochs, steps, resume, corrid, pretrained_model, transform, model_config)
+    perform_training(data_dir, model_root, epochs, steps, resume, corrid, pretrained_model, transform, model_config)
     perform_testing(data_dir, model_config, model_root, resume, pretrained_model, corrid)
 
 
