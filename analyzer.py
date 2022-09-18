@@ -10,24 +10,25 @@ from natsort import natsorted
 
 def main():
     # Cycle indices are 0-12, we can choose a subset of the cycles to analyze
+    cy_name = "cycle_1,_6x6,_Nz_=_21_2022-08-11_13-04-18.501469" # choose cycle to use as mask
     start_idx = 0 #2
-    end_idx   = 14 #11
+    end_idx   = 3 #11
     # 4 channels
     n_ch      = 4
     # How many pixels around the mask to expand
     expansion = 9   
     # root_dir needs a trailing slash (i.e. /root/dir/)
-    root_dir = '/media/prakashlab/T7/'#'gs://octopi-codex-data-processing/' #"/home/prakashlab/Documents/kmarx/pipeline/tstflat/"# 'gs://octopi-codex-data-processing/TEST_1HDcVekx4mrtl0JztCXLn9xN6GOak4AU/'#
-    exp_id   = "20220823_20x_PBMC_2/"
+    root_dir = '/home/octopi-codex/Documents/pipeline_test/'#'gs://octopi-codex-data-processing/' #"/home/prakashlab/Documents/kmarx/pipeline/tstflat/"# 'gs://octopi-codex-data-processing/TEST_1HDcVekx4mrtl0JztCXLn9xN6GOak4AU/'#
+    exp_id   = "20220811_10x_zstacks/"
     zstack  = 'f' # select which z to run segmentation on. set to 'f' to select the focus-stacked
     channel =  "Fluorescence_405_nm_Ex" # use only this channel as masks
     key = '/home/prakashlab/Documents/fstack/codex-20220324-keys.json'
     gcs_project = 'soe-octopi'
-    out = "/media/prakashlab/T7/" + exp_id + "/meanbright_" + str(expansion) + ".csv"
+    out = "/home/octopi-codex/Documents/pipeline_test/" + exp_id + "meanbright_" + str(expansion) + ".csv"
     
-    run_analysis(start_idx, end_idx, n_ch, zstack, expansion, root_dir, exp_id, channel, key, gcs_project, out)
+    run_analysis(cy_name, start_idx, end_idx, n_ch, zstack, expansion, root_dir, exp_id, channel, key, gcs_project, out)
 
-def run_analysis(start_idx, end_idx, n_ch, zstack, expansion, root_dir, exp_id, channel, key, gcs_project, out):
+def run_analysis(cy_name, start_idx, end_idx, n_ch, zstack, expansion, root_dir, exp_id, channel, key, gcs_project, out):
     root_remote = False
     if root_dir[0:5] == 'gs://':
         root_remote = True
@@ -42,7 +43,7 @@ def run_analysis(start_idx, end_idx, n_ch, zstack, expansion, root_dir, exp_id, 
         fs = gcsfs.GCSFileSystem(project=gcs_project,token=key)
 
     print("Reading .npy paths")
-    path = root_dir + exp_id + "segmentation/**_" + zstack + "_" + channel + '_seg.npy'
+    path = root_dir + exp_id + "segmentation/" + cy_name + "/0/**_" + zstack + "_" + channel + '_seg.npy'
     print(path)
     if root_remote:
         allpaths = [p for p in fs.glob(path, recursive=True)]
