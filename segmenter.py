@@ -2,7 +2,7 @@ import numpy as np
 from cellpose import models
 from cellpose import models, io
 import glob
-import os
+import os	
 import gcsfs
 import imageio
 from natsort import natsorted
@@ -10,11 +10,11 @@ import time
 
 def main():
     # root_dir needs a trailing slash (i.e. /root/dir/)
-    root_dir = 'gs://octopi-malaria-uganda-2022/Ju46y9GSqf6DNU2TI6m1BQEo33APSB1n/analysis/'#'gs://octopi-codex-data-processing/' #"/home/prakashlab/Documents/kmarx/pipeline/tstflat/"# 'gs://octopi-codex-data-processing/TEST_1HDcVekx4mrtl0JztCXLn9xN6GOak4AU/'#
-    exp_id   = ""
-    channel =  "BF_LED_matrix_dpc" # only run segmentation on this channel
+    root_dir = '/home/octopi-codex/Documents/pipeline_test/'#'gs://octopi-codex-data-processing/' #"/home/prakashlab/Documents/kmarx/pipeline/tstflat/"# 'gs://octopi-codex-data-processing/TEST_1HDcVekx4mrtl0JztCXLn9xN6GOak4AU/'#
+    exp_id   = "20220811_10x_zstacks/"
+    channel =  "Fluorescence_405_nm_Ex" # only run segmentation on this channel
     zstack  = 'f' # select which z to run segmentation on. set to 'f' to select the focus-stacked
-    cpmodel = "./cp_dpc_new"
+    cpmodel = "/home/octopi-codex/Documents/pipeline_test/subsets/20220811_10x_zstacks/models/cellpose_residual_on_style_on_concatenation_off_20220811_10x_zstacks_2022_09_18_11_18_32.611351"
     channels = [0,0] # grayscale only
     key = '/home/prakashlab/Documents/kmarx/malaria_deepzoom/deepzoom uganda 2022/uganda-2022-viewing-keys.json'
     use_gpu = True
@@ -70,6 +70,7 @@ def run_seg(root_dir, exp_id, channel, zstack, cpmodel, channels, key, use_gpu, 
 
     placeholder = "./placeholder.png"
     dest = root_dir + exp_id + "segmentation/"
+    os.makedirs(dest, exist_ok=True)
 
     # segment one at a time - gpu bottleneck
     for idx, impath in enumerate(segpaths):
@@ -98,12 +99,17 @@ def run_seg(root_dir, exp_id, channel, zstack, cpmodel, channels, key, use_gpu, 
             # run segmentation
             masks, flows, styles = model.eval(im, diameter=None, channels=channels)
         elif np.max(masks) == 0 and segment_all:
+            print("No cells detected! Next view")
             continue
         diams = 0
         if root_remote:
             savepath = placeholder
         else:
-            savepath = dest + impath.split('/')[-1]
+            savepath = dest + impath.split('/')[-3] + '/' + impath.split('/')[-2] + '/' 
+            os.makedirs(savepath, exist_ok=True)
+            savepath = savepath + impath.split('/')[-1]
+            if verbose:
+                print(savepath)
         # save the data
         io.masks_flows_to_seg(im, masks, flows, diams, savepath, channels)
 

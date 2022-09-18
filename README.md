@@ -8,7 +8,7 @@ Future revisions will include .zarr support (more compression options, faster re
 
 ### focus stack
 
-- `requirements-fstack.txt`: List of requirements to run fstack and fstack_cu. Activate your conda environment and run `pip install -r requirements-fstack.txt`
+- `requirements_fstack.txt`: List of requirements to run fstack and fstack\_cu. Activate your conda environment and run `pip install -r requirements_fstack.txt`
 - fstack
   - `__init__.py`: this is the fstack code.
   - Python code in the pipeline/ directory can import fstack with `from fstack import fstack`
@@ -27,21 +27,33 @@ Future revisions will include .zarr support (more compression options, faster re
 
 ### segmentation
 
-- `requirements-segment.txt`: see `requirements-fstack.txt` description
+- `requirements_segment.txt`: see `requirements_fstack.txt` description
 - `segmenter.py`: segment nuclei using cellpose using a pretrained model. Use the cellpose gui to create the model.
 
 ### analysis
 
-- `requirements-analyze.txt`: see `requirements-fstack.txt` description
+- `requirements_analyze.txt`: see `requirements_fstack.txt` description
 - `analyzer.py`: measure the size and average brightness of each cell in each channel and save as a csv. `analyzer.py` assumes a folder and file structure created by `segmenter.py`.
 
 ### deepzoom
 
-- `reqeirements_deepzoom.txt`: see `requirements-fstack.txt` description
+- `reqeirements-deepzoom.txt`: see `requirements_fstack.txt` description
 - `deepzoom.py`: make a deepzoom image and optionally make a web viewer for it. If you are making a web viewer, you must manually copy the openseadragon folder to the same directory as the `all_viewer.html` document.
 - openseadragon: this folder contains the files for the deepzoom web viewer.
 
 ## Guides
+
+### preliminary initialization
+
+First, install miniconda for python 3.9 following this guide: https://docs.conda.io/projects/conda/en/latest/user-guide/install/linux.html Miniconda will help manage our packages and python environment.
+
+Next, install CUDA 11.3 and cuDNN 8.5.0 from nvidia. This lets us use the graphics card for accelerated ML and image processing. We need version 11.3 for compatibility with Cellpose and M2Unet. 
+
+CUDA: `sudo apt-get update`, `sudo apt-get upgrade`, `sudo apt-get install cuda=11.3.1-1`, `sudo apt-get install nvidia-gds=11.4.1-1`, `export PATH=/usr/local/cuda-11.3/bin${PATH:+:${PATH}}`, `export LD_LIBRARY_PATH=/usr/local/cuda-11.3/lib64 ${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}`, `sudo reboot`. Verify that the PATH exported properly, if it didn't, modify `~./bashrc` to add CUDA to PATH and LD\_LIBRARY\_PATH.
+
+cuDNN: Follow the directions for Ubuntu network installation here: https://docs.nvidia.com/deeplearning/cudnn/install-guide/index.html#package-manager-ubuntu-install Make sure you install a version of cuDNN compatible with CUDA 11.3 (e.g.`libcudnn8=8.2.1.32-1+cuda11.3` and `libcudnn8-dev=8.2.1.32-1+cuda11.3`)
+
+Create a new conda environment and install the requirements: `conda create --name pipeline`, `conda activate pipeline`, `pip install -r requirements_fstack.txt`, `pip install -r requirements_segment.txt`, `pip install -r requirements_analyze.txt`, `pip install -r requirements_deepzoom.txt`
 
 ### fstacker usage
 
@@ -62,7 +74,7 @@ Focus-stack every imageset from a codex experiment. Suppose you have the followi
     - `0`
       - identical structure to `exp_id_1`
 
-For each experiment ID, for each channel `Fluorescence_NNN_nm_Ex`, and for each i index `i` and j index `j` in the range, `fstacker.py` generates an image called "`i`\_`j`\_f_Fluorescence\_`NNN`\_nm_Ex.png" image (with different values for `i`, `j`, and `NNN` for each image stacked) and saves it to either the `src` directory or a different directory of your choosing.
+For each experiment ID, for each channel `Fluorescence_NNN_nm_Ex`, and for each i index `i` and j index `j` in the range, `fstacker.py` generates an image called "`i`\_`j`\_f\_Fluorescence\_`NNN`\_nm\_Ex.png" image (with different values for `i`, `j`, and `NNN` for each image stacked) and saves it to either the `src` directory or a different directory of your choosing.
 
 #### set fstacker parameters
 
@@ -134,6 +146,10 @@ cellpose uses machine learning models to segment the nuclei (405 nm channel). In
 #### run it
 
 1. set the parameters and run the script. the images will be saved to `dest_dir + exp_id` directory.
+
+2. Deactivate your conda environment and install `cellpose[gui]` in the base environment. Use cellpose to manually segment the training data.
+
+3. To train cellpose, run the following command: `python -m cellpose --use_gpu --train --dir {dir-to-subsets-folder} --chan 0 --batch_size 4 --pretrained_model {pretrained-model-path-or-name} --verbose --mask_filter _seg.npy` where `{dir-to-subsets-folder}` is the path to the folder with training images and masks and `{pretrained-model-path-or-name}` is the name of a cellpose built-in odel (e.g.`cyto` or `nuclei`) or the path to an existing cellpose model. After the command is run, the model will be in `{dir-to-subsets-folder}/models`.
 
 ### segmenter usage
 
@@ -210,5 +226,11 @@ It is useful to have a display showing the entire view for each channel. `deepzo
 
 #### run deepzoom
 
+conda install -c conda-forge librsvg
+conda install -c conda-forge libiconv 
+conda install --channel conda-forge pyvips
+
+
 1. to use deepzoom generator as a script, set the constants and run the file
-2. there currently is no CLI version
+
+2. navigate to the directory with the .html file, copy-paste the openseadragon folder to this directory, and run `python3 -m http.server` in this directory

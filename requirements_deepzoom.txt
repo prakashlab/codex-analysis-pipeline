@@ -4,3 +4,4 @@ gcsfs==2022.7.1
 imageio==2.21.1
 xarray==2022.6.0
 natsort==8.1.0
+pyvips==2.2.1

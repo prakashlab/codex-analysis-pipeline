@@ -19,11 +19,11 @@ def main():
     make_viewer = True
     key = '/home/prakashlab/Documents/kmarx/malaria_deepzoom/deepzoom uganda 2022/uganda-2022-viewing-keys.json'
     gcs_project = 'soe-octopi'
-    src = "/media/prakashlab/T7/"
-    dst = 'gs://octopi-malaria-uganda-2022/mSuWcFWwxF5iEVLHIm99RAVvbCIY34nF/'
-    exp_id = "20220823_20x_PBMC_2"
+    src = "/home/octopi-codex/Documents/pipeline_test/"
+    dst = '/home/octopi-codex/Documents/pipeline_test/dz/'
+    exp_id = "20220811_10x_zstacks/"
     cha = ["Fluorescence_405_nm_Ex", "Fluorescence_488_nm_Ex", "Fluorescence_561_nm_Ex", "Fluorescence_638_nm_Ex"]
-    cy = [1]
+    cy = [0,1,2,3]
     zstack = 'f'
     make_zoom(parameters, make_viewer, key, gcs_project, src, dst, exp_id, cha, cy, zstack)
 
@@ -137,7 +137,7 @@ def make_zoom(parameters, make_viewer, key, gcs_project, src, dst, exp_id, cha, 
         if out_remote:
             filesave = './temp/'
             os.makedirs(filesave, exist_ok=True)
-        with open(filesave + exp_id + "_all_viewer.html", 'w') as f:
+        with open(filesave + exp_id[:-1] + "_all_viewer.html", 'w') as f:
             f.write('''<!DOCTYPE html>
 <html>
   <head>

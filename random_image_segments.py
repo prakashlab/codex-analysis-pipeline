@@ -9,10 +9,10 @@ import imageio
 
 def main():
     # root_dir needs a trailing slash (i.e. /root/dir/)
-    root_dir = 'gs://octopi-malaria-uganda-2022/Ju46y9GSqf6DNU2TI6m1BQEo33APSB1n/analysis/'#'gs://octopi-codex-data-processing/' #"/home/prakashlab/Documents/kmarx/pipeline/tstflat/"# 'gs://octopi-codex-data-processing/TEST_1HDcVekx4mrtl0JztCXLn9xN6GOak4AU/'#
-    dest_dir = '/media/prakashlab/T7/dpc_data/' # must be a local path
-    exp_id   = ""
-    channel =  "BF_LED_matrix_left_dpc" # only run segmentation on this channel
+    root_dir = '/home/octopi-codex/Documents/pipeline_test/'#'gs://octopi-codex-data-processing/' #"/home/prakashlab/Documents/kmarx/pipeline/tstflat/"# 'gs://octopi-codex-data-processing/TEST_1HDcVekx4mrtl0JztCXLn9xN6GOak4AU/'#
+    dest_dir = '/home/octopi-codex/Documents/pipeline_test/subsets/' # must be a local path
+    exp_id   = "20220811_10x_zstacks/"
+    channel =  "Fluorescence_405_nm_Ex" # only run segmentation on this channel
     zstack  = 'f' # select which z to run segmentation on. set to 'f' to select the focus-stacked
     key = '/home/prakashlab/Documents/kmarx/malaria_deepzoom/deepzoom uganda 2022/uganda-2022-viewing-keys.json'
     ftype = 'png'
@@ -59,6 +59,9 @@ def get_rand(root_dir, dest_dir, exp_id, channel, zstack, n_rand, key, nsub, gcs
         xslice = random.choice(range(nsub))
         yslice = random.choice(range(nsub))
         im = im[x*xslice:(x*xslice + x), y*yslice:(y*yslice + y)]
+        
+        im = im - np.min(im)
+        im = np.uint8(255 * np.array(im, dtype=np.float64)/float(np.max(im)))
 
         fname = savepath + "s_" + impath.split('/')[-1]
 
