@@ -105,11 +105,12 @@ def run_seg(root_dir, exp_id, channel, zstack, cpmodel, channels, key, use_gpu, 
         if root_remote:
             savepath = placeholder
         else:
-            savepath = dest + impath.split('/')[-3] + '/' + impath.split('/')[-2] + '/' 
+            if segment_all:
+                savepath = dest + impath.split('/')[-3] + '/' + impath.split('/')[-2] + '/' 
+            else:
+                savepath = dest + "first" + '/' + impath.split('/')[-2] + '/' 
             os.makedirs(savepath, exist_ok=True)
             savepath = savepath + impath.split('/')[-1]
-            if verbose:
-                print(savepath)
         # save the data
         io.masks_flows_to_seg(im, masks, flows, diams, savepath, channels)
 

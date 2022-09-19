@@ -8,7 +8,7 @@ Future revisions will include .zarr support (more compression options, faster re
 
 ### focus stack
 
-- `requirements_fstack.txt`: List of requirements to run fstack and fstack\_cu. Activate your conda environment and run `pip install -r requirements_fstack.txt`
+- `requirements_fstack.txt`: List of requirements to run fstack and fstack_cu. Activate your conda environment and run `pip install -r requirements_fstack.txt`
 - fstack
   - `__init__.py`: this is the fstack code.
   - Python code in the pipeline/ directory can import fstack with `from fstack import fstack`
@@ -38,22 +38,22 @@ Future revisions will include .zarr support (more compression options, faster re
 ### deepzoom
 
 - `reqeirements-deepzoom.txt`: see `requirements_fstack.txt` description
-- `deepzoom.py`: make a deepzoom image and optionally make a web viewer for it. If you are making a web viewer, you must manually copy the openseadragon folder to the same directory as the `all_viewer.html` document.
+- `deepzoom.py`: make a deepzoom image and optionally make a web viewer for it. If you are making a web viewer, you must manually copy the openseadragon folder to the same directory as the `_all_viewer.html` document.
 - openseadragon: this folder contains the files for the deepzoom web viewer.
 
 ## Guides
 
 ### preliminary initialization
 
-First, install miniconda for python 3.9 following this guide: https://docs.conda.io/projects/conda/en/latest/user-guide/install/linux.html Miniconda will help manage our packages and python environment.
+First, install miniconda for python 3 following this guide: https://docs.conda.io/projects/conda/en/latest/user-guide/install/linux.html Miniconda will help manage our packages and python environment.
 
-Next, install CUDA 11.3 and cuDNN 8.5.0 from nvidia. This lets us use the graphics card for accelerated ML and image processing. We need version 11.3 for compatibility with Cellpose and M2Unet. 
+Next, install CUDA 11.3 and cuDNN 8.5.0 from nvidia. This lets us use the graphics card for accelerated ML and image processing. We need version 11.3 for compatibility with Cellpose and M2Unet.
 
-CUDA: `sudo apt-get update`, `sudo apt-get upgrade`, `sudo apt-get install cuda=11.3.1-1`, `sudo apt-get install nvidia-gds=11.4.1-1`, `export PATH=/usr/local/cuda-11.3/bin${PATH:+:${PATH}}`, `export LD_LIBRARY_PATH=/usr/local/cuda-11.3/lib64 ${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}`, `sudo reboot`. Verify that the PATH exported properly, if it didn't, modify `~./bashrc` to add CUDA to PATH and LD\_LIBRARY\_PATH.
+CUDA: `sudo apt-get update`, `sudo apt-get upgrade`, `sudo apt-get install cuda=11.3.1-1`, `sudo apt-get install nvidia-gds=11.4.1-1`, `export PATH="/usr/local/cuda-11.3/bin:$PATH"`, `export LD_LIBRARY_PATH="/usr/local/cuda-11.3/lib64 $LD_LIBRARY_PATH"`, `sudo reboot`. Verify that the PATH exported properly, if it didn't, modify `~./bashrc` to add CUDA to PATH and LD_LIBRARY_PATH.
 
 cuDNN: Follow the directions for Ubuntu network installation here: https://docs.nvidia.com/deeplearning/cudnn/install-guide/index.html#package-manager-ubuntu-install Make sure you install a version of cuDNN compatible with CUDA 11.3 (e.g.`libcudnn8=8.2.1.32-1+cuda11.3` and `libcudnn8-dev=8.2.1.32-1+cuda11.3`)
 
-Create a new conda environment and install the requirements: `conda create --name pipeline`, `conda activate pipeline`, `pip install -r requirements_fstack.txt`, `pip install -r requirements_segment.txt`, `pip install -r requirements_analyze.txt`, `pip install -r requirements_deepzoom.txt`
+Create a new conda environment and install the requirements: `conda create --name pipeline`, `conda activate pipeline`, then follow this guide to install the correct version of pytorch: https://pytorch.org/get-started/locally/. Next, run the following commands:`pip install -r requirements_fstack.txt`, `pip install -r requirements_segment.txt`, `pip install -r requirements_analyze.txt`, `pip install -r requirements_deepzoom.txt`
 
 ### fstacker usage
 
@@ -74,7 +74,7 @@ Focus-stack every imageset from a codex experiment. Suppose you have the followi
     - `0`
       - identical structure to `exp_id_1`
 
-For each experiment ID, for each channel `Fluorescence_NNN_nm_Ex`, and for each i index `i` and j index `j` in the range, `fstacker.py` generates an image called "`i`\_`j`\_f\_Fluorescence\_`NNN`\_nm\_Ex.png" image (with different values for `i`, `j`, and `NNN` for each image stacked) and saves it to either the `src` directory or a different directory of your choosing.
+For each experiment ID, for each channel `Fluorescence_NNN_nm_Ex`, and for each i index `i` and j index `j` in the range, `fstacker.py` generates an image called "`i`\_`j`\_f_Fluorescence\_`NNN`\_nm_Ex.png" image (with different values for `i`, `j`, and `NNN` for each image stacked) and saves it to either the `src` directory or a different directory of your choosing.
 
 #### set fstacker parameters
 
@@ -155,9 +155,9 @@ cellpose uses machine learning models to segment the nuclei (405 nm channel). In
 
 #### segmenter theory of operation
 
-cells don't move between cycles so we only need to segment one cycle for each (i,j) view. We generally choose to segment the nuclear channel because it is brightest. The script first loads all the channel paths, sorts them to find the 0th channel, then filters the image paths so only the 0th channel images are loaded. Images are then segmented one at a time. In principle, Cellpose can work faster by segmenting multi-image batches but in my experience not all GPUs can handle segmenting multiple images. Cellpose then saves a .npy file with the masks to the destination directory.
+cells don't move between cycles so we only need to segment one cycle for each (i,j) view. We generally choose to segment the nuclear channel because it is brightest. The script first loads all the channel paths, sorts them to find the 0th channel, then filters the image paths so only the 0th channel images are loaded. Alternatively, we can choose to segment all the images. Images are then segmented one at a time. In principle, Cellpose can work faster by segmenting multi-image batches but in my experience not all GPUs can handle segmenting multiple images. Cellpose then saves a series of .npy files with the masks to the destination directory.
 
-if you are having trouble installing cellpose, try uninstalling all other python packages that use QTpy (e.g. cv2), install cellpose, then reinstall everthing you uninstalled. If you are using CUDA, ensure your CUDA version is compatible with your version of torch.
+if you are having trouble installing cellpose, try uninstalling all other python packages that use QTpy (e.g. cv2), install cellpose, then reinstall everthing you uninstalled. If you are using CUDA, ensure your CUDA version is compatible with your version of torch. Cellpose\[gui\] seems to only work in the base channel.
 
 #### set segmenter parameters
 
@@ -169,6 +169,7 @@ if you are having trouble installing cellpose, try uninstalling all other python
 - `gcs_project`: string. Set this to the Google Cloud Storage project name if you are connecting to GCS. Otherwise, it doesn't matter.
 - `cpmodel`: string. path to cellpose model. Can be remote or local.
 - `use_gpu`: boolean. Set to `True` to try segmenting using the GPU.
+- `segment_all`: boolean. Set to `True` to segment all cycles, not just the first
 - `channels`: list of ints. Which channel to run segmentation on. Set to `[0,0]` for the monochrome channel
 
 #### run segmenter
@@ -186,6 +187,7 @@ The CSV columns are cell index in a given view, the i index, j index, x position
 
 #### set analyzer parameters
 
+- `cy_name`: string. If during semgentation `segment_all = True`, set this to be the name of the cycle you want to use as the mask. If `segment_all = False`, set `cy_name = "first"`.
 - `start_idx`, `end_idx`: integers. Select a range of cycles to analyze
 - `n_ch`: integer. Number of channels to analyze
 - `expansion`: integer, must be odd. The number of pixels to expand around the nucleus mask to create the cell masks.
@@ -227,9 +229,8 @@ It is useful to have a display showing the entire view for each channel. `deepzo
 #### run deepzoom
 
 conda install -c conda-forge librsvg
-conda install -c conda-forge libiconv 
+conda install -c conda-forge libiconv
 conda install --channel conda-forge pyvips
-
 
 1. to use deepzoom generator as a script, set the constants and run the file
 
