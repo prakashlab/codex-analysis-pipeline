@@ -18,14 +18,14 @@ def main():
     model_root = "./models"
     epochs = 1600
     steps = 1
-    resume = True
-    corrid = "222"
+    resume = False
+    corrid = "200"
     pretrained_model = None # os.path.join(model_root, str(corrid), "model.h5")
 
     # define the transforms
     transform = A.Compose(
         [
-            A.RandomCrop(512, 512),
+            A.RandomCrop(363, 363),
             A.Rotate(limit=360, p=1),
             A.HorizontalFlip(p=1),
             A.CenterCrop(256, 256),        
