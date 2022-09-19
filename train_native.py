@@ -41,7 +41,7 @@ def main():
         "augmentation": A.to_dict(transform),
     }
 
-    perform_training(data_dir, model_root, epochs, steps, resume, corrid, pretrained_model, transform, model_config)
+    #perform_training(data_dir, model_root, epochs, steps, resume, corrid, pretrained_model, transform, model_config)
     perform_testing(data_dir, model_config, model_root, resume, pretrained_model, corrid)
 
 
@@ -70,6 +70,7 @@ def perform_training(data_dir, model_root, epochs, steps, resume, corrid, pretra
         for (image, labels) in train_samples:
             mask = model.transform_labels(labels)
             x = np.expand_dims(image, axis=0)
+            x = (x - np.mean(x)) /np.std(x)
             y = np.expand_dims(mask, axis=0)
             losses = []
             for _ in range(steps):
@@ -91,9 +92,10 @@ def perform_testing(data_dir, model_config, model_root, resume, pretrained_model
         default_save_path=os.path.join(model_root, str(corrid), "model.pth"),
     )
     for i, sample in enumerate(test_samples):
-        inputs = sample[0].astype("float32")[None, :512, :512, :]
+        inputs = sample[0].astype("float32")[None, :256, :256, :]
         imageio.imwrite(f"octopi-inputs_{i}.png", inputs[0].astype('uint8'))
-        labels = sample[1].astype("float32")[None, :512, :512, :] * 255
+        inputs = (inputs - np.mean(inputs)) /np.std(inputs)
+        labels = sample[1].astype("float32")[None, :256, :256, :] * 255
         imageio.imwrite(f"octopi-labels_{i}.png", labels[0].astype('uint8'))
         results = model.predict(inputs)
         output = np.clip(results[0] * 255, 0, 255)[:, :, 0].astype('uint8')
