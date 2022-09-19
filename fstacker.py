@@ -122,6 +122,7 @@ def main():
     return
     
 def perform_stack(colors, prefix, use_gpu, key, gcs_project, src, exp, cha, dst, typ, imin, imax, jmin, jmax, kmin, kmax, cmin, cmax, crop_start, crop_end, remove_background, subtract_background, invert_contrast, shift_registration, use_color, WSize, alpha, sth, verbose):
+    os.makedirs(dst, exist_ok = True)
     t0 = time.time()
     a = crop_end - crop_start
     # Initialize arguments
