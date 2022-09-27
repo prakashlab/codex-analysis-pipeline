@@ -10,16 +10,16 @@ from natsort import natsorted
 
 def main():
     # Cycle indices are 0-12, we can choose a subset of the cycles to analyze
-    cy_name = "cycle_1,_6x6,_Nz_=_21_2022-08-11_13-04-18.501469" # choose cycle to use as mask
+    cy_name = "cycle0_2022-08-23_20-15-33.401781" # choose cycle to use as mask
     start_idx = 0 #2
-    end_idx   = 3 #11
+    end_idx   = 14 #11
     # 4 channels
-    n_ch      = 4
+    n_ch      = 14
     # How many pixels around the mask to expand
     expansion = 9   
     # root_dir needs a trailing slash (i.e. /root/dir/)
-    root_dir = '/home/octopi-codex/Documents/pipeline_test/'#'gs://octopi-codex-data-processing/' #"/home/prakashlab/Documents/kmarx/pipeline/tstflat/"# 'gs://octopi-codex-data-processing/TEST_1HDcVekx4mrtl0JztCXLn9xN6GOak4AU/'#
-    exp_id   = "20220811_10x_zstacks/"
+    root_dir = '/media/prakashlab/T7/'#'gs://octopi-codex-data-processing/' #"/home/prakashlab/Documents/kmarx/pipeline/tstflat/"# 'gs://octopi-codex-data-processing/TEST_1HDcVekx4mrtl0JztCXLn9xN6GOak4AU/'#
+    exp_id   = "20220823_20x_PBMC_2/"
     zstack  = 'f' # select which z to run segmentation on. set to 'f' to select the focus-stacked
     channel =  "Fluorescence_405_nm_Ex" # use only this channel as masks
     key = '/home/prakashlab/Documents/fstack/codex-20220324-keys.json'
@@ -43,7 +43,7 @@ def run_analysis(cy_name, start_idx, end_idx, n_ch, zstack, expansion, root_dir,
         fs = gcsfs.GCSFileSystem(project=gcs_project,token=key)
 
     print("Reading .npy paths")
-    path = root_dir + exp_id + "segmentation/" + cy_name + "/0/**_" + zstack + "_" + channel + '_seg.npy'
+    path = root_dir + exp_id + "" + cy_name + "/0/**_" + zstack + "_" + channel + '_seg.npy'
     print(path)
     if root_remote:
         allpaths = [p for p in fs.glob(path, recursive=True)]
@@ -74,7 +74,7 @@ def run_analysis(cy_name, start_idx, end_idx, n_ch, zstack, expansion, root_dir,
     print(str(len(pngpaths)) + " images to analyze")
 
     # make a dataframe
-    header = ['i', 'j', 'x', 'y', 'sz_msk', 'sz_nuc']
+    header = ['i', 'j', 'x_cell', 'y_cell', 'x_nuc', 'y_nuc', 'mask_x_cell', 'mask_y_cell', 'mask_x_nuc', 'mask_y_nuc', 'sz_msk', 'sz_nuc']
     for cy in range(start_idx, end_idx + 1,1):
         for ch in range(0, n_ch):
             header.append(str(cy) + "_" + str(ch))
@@ -140,6 +140,26 @@ def run_analysis(cy_name, start_idx, end_idx, n_ch, zstack, expansion, root_dir,
                 y = -1
             coord = [x, y]
             row = row + coord
+            # do the same thing but for just the pre-dilated mask
+            nuc_mask = masks == (l+1)
+            # find the coordinates of the cell
+            contours, hierarchy = cv2.findContours(np.array(nuc_mask, dtype="uint8"), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+            M = cv2.moments(contours[0])
+            # avoid divide-by-zero errors
+            try:
+                x = round(M['m10'] / M['m00'])
+            except:
+                x = -1
+            try:
+                y =  round(M['m01'] / M['m00'])
+            except:
+                y = -1
+            coord = [x, y]
+            row = row + coord
+            # get points in cell mask (x and y coords)
+            row = row + np.where(cell_mask > 0)
+            # get points in nucleus mask (x and y coords)
+            row = row + np.where(nuc_mask > 0)
             # get mean brightness
             brightness = np.zeros(len(imgpath))
             # for each image find the avg brightness around that cell
