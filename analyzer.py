@@ -24,7 +24,7 @@ def main():
     channel =  "Fluorescence_405_nm_Ex" # use only this channel as masks
     key = '/home/prakashlab/Documents/fstack/codex-20220324-keys.json'
     gcs_project = 'soe-octopi'
-    out = "/home/prakashlab/Documents/pipeline_test/" + exp_id + "3meanbright_" + str(expansion) + ".csv"
+    out = "/home/prakashlab/Documents/pipeline_test/" + exp_id + "2meanbright_" + str(expansion) + ".csv"
     
     run_analysis(cy_name, start_idx, end_idx, n_ch, zstack, expansion, root_dir, exp_id, channel, key, gcs_project, out)
 
@@ -165,13 +165,14 @@ def run_analysis(cy_name, start_idx, end_idx, n_ch, zstack, expansion, root_dir,
             x_coor, y_coor = np.where(nuc_mask > 0)
             row += [x_coor, y_coor]
             # get mean brightness
-            brightness = []
+            brightness = np.zeros(len(imgpath))
             # for each image find the avg brightness around that cell
             for m, im in enumerate(imgs):
-                avg = np.mean(im[cell_mask])
-                # If the avg is 0, throw it out (this is a no-data cycle)
-                if avg != 0:
-                    brightness.append(avg)
+                if np.max(im) == 0:
+                    avg = -1
+                else:
+                    avg = np.mean(im[cell_mask])
+                brightness[m]   = avg
             # write the row
             sz = [str(np.sum(cell_mask)), str(np.sum(masks==(l+1)))]
             brightness = [str(b) for b in brightness]
