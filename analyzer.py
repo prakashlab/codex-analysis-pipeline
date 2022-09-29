@@ -12,19 +12,19 @@ def main():
     # Cycle indices are 0-12, we can choose a subset of the cycles to analyze
     cy_name = "cycle0_2022-08-23_20-15-33.401781" # choose cycle to use as mask
     start_idx = 0 #2
-    end_idx   = 14 #11
+    end_idx   = 13 #11
     # 4 channels
-    n_ch      = 14
+    n_ch      = 4
     # How many pixels around the mask to expand
     expansion = 9   
     # root_dir needs a trailing slash (i.e. /root/dir/)
-    root_dir = '/media/prakashlab/T7/'#'gs://octopi-codex-data-processing/' #"/home/prakashlab/Documents/kmarx/pipeline/tstflat/"# 'gs://octopi-codex-data-processing/TEST_1HDcVekx4mrtl0JztCXLn9xN6GOak4AU/'#
+    root_dir = 'gs://octopi-codex-data-processing/UUlABKZIWxiZP5UnJvx6z1CZMhtxx9tu/'#'gs://octopi-codex-data-processing/' #"/home/prakashlab/Documents/kmarx/pipeline/tstflat/"# 'gs://octopi-codex-data-processing/TEST_1HDcVekx4mrtl0JztCXLn9xN6GOak4AU/'#
     exp_id   = "20220823_20x_PBMC_2/"
     zstack  = 'f' # select which z to run segmentation on. set to 'f' to select the focus-stacked
     channel =  "Fluorescence_405_nm_Ex" # use only this channel as masks
     key = '/home/prakashlab/Documents/fstack/codex-20220324-keys.json'
     gcs_project = 'soe-octopi'
-    out = "/home/octopi-codex/Documents/pipeline_test/" + exp_id + "meanbright_" + str(expansion) + ".csv"
+    out = "/home/prakashlab/Documents/pipeline_test/" + exp_id + "3meanbright_" + str(expansion) + ".csv"
     
     run_analysis(cy_name, start_idx, end_idx, n_ch, zstack, expansion, root_dir, exp_id, channel, key, gcs_project, out)
 
@@ -38,6 +38,8 @@ def run_analysis(cy_name, start_idx, end_idx, n_ch, zstack, expansion, root_dir,
     if out[0:5] == 'gs://':
         out_remote = True
         out_path = out_placeholder
+    if not out_remote:
+        os.makedirs(out_path.rsplit('/', 1)[0], exist_ok=True)
     fs = None
     if root_remote or out_remote:
         fs = gcsfs.GCSFileSystem(project=gcs_project,token=key)
@@ -157,15 +159,19 @@ def run_analysis(cy_name, start_idx, end_idx, n_ch, zstack, expansion, root_dir,
             coord = [x, y]
             row = row + coord
             # get points in cell mask (x and y coords)
-            row = row + np.where(cell_mask > 0)
+            x_coor, y_coor = np.where(cell_mask > 0)
+            row += [x_coor, y_coor]
             # get points in nucleus mask (x and y coords)
-            row = row + np.where(nuc_mask > 0)
+            x_coor, y_coor = np.where(nuc_mask > 0)
+            row += [x_coor, y_coor]
             # get mean brightness
-            brightness = np.zeros(len(imgpath))
+            brightness = []
             # for each image find the avg brightness around that cell
             for m, im in enumerate(imgs):
                 avg = np.mean(im[cell_mask])
-                brightness[m]   = avg
+                # If the avg is 0, throw it out (this is a no-data cycle)
+                if avg != 0:
+                    brightness.append(avg)
             # write the row
             sz = [str(np.sum(cell_mask)), str(np.sum(masks==(l+1)))]
             brightness = [str(b) for b in brightness]
