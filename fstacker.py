@@ -18,12 +18,12 @@ def main():
     
     CLI = False     # set to true for CLI, if false, the following constants are used:
     use_gpu = True  # use GPU accelerated focus stacking
-    prefix = "cycle"     # if index.csv DNE, use prefix, else keep empty
-    key = '/home/octopi-codex/Documents/keys/codex-20220324-keys.json'
+    prefix = ""     # if index.csv DNE, use prefix, else keep empty
+    key = '/home/prakashlab/Documents/fstack/codex-20220324-keys.json'
     gcs_project = 'soe-octopi'
     src = "gs://octopi-codex-data/"
-    dst = '/home/octopi-codex/Documents/pipeline_test/' #"gs://octopi-codex-data-processing" #"./test"
-    exp = ['20220811_10x_zstacks/']
+    dst = "/media/prakashlab/T7/newtest/" #"./test"
+    exp = ['20220823_20x_PBMC_2/']
     cha = ["Fluorescence_638_nm_Ex", "Fluorescence_561_nm_Ex", "Fluorescence_488_nm_Ex", "Fluorescence_405_nm_Ex"]
     typ = "bmp"
     colors = {'0':[255,255,255],'1':[255,200,0],'2':[30,200,30],'3':[0,0,255]} # BRG
@@ -33,13 +33,13 @@ def main():
     subtract_background = False
     use_color = False
     imin = 0    # view positions
-    imax = 5
+    imax = 19
     jmin = 0
-    jmax = 5
-    kmin = 0
-    kmax = 9
-    cmin = 1
-    cmax = 4
+    jmax = 19
+    kmin = 0 
+    kmax = 0
+    cmin = 0
+    cmax = 14
     crop_start = 0 # crop settings
     crop_end = 3000
     WSize = 9     # Focus stacking params
@@ -187,8 +187,8 @@ def perform_stack(colors, prefix, use_gpu, key, gcs_project, src, exp, cha, dst,
         I_zs = np.zeros((kmax-kmin + 1,a,a))
     # store total # of imgs
     with open(dst + "log.txt", 'w') as f:
-    	f.write(str(len(exp) * (imax - imin + 1) * (jmax - jmin + 1) * (kmax - kmin + 1) * (cmax - cmin + 1)))
-    	f.write(' images\n');
+        f.write(str(len(exp) * (imax - imin + 1) * (jmax - jmin + 1) * (kmax - kmin + 1) * (cmax - cmin + 1)))
+        f.write(' images\n')
     # perform fstack for each experiment and for each channel and for each i,j
     for exp_i in exp:
         # load index.csv for each top-level experiment index
@@ -221,8 +221,8 @@ def perform_stack(colors, prefix, use_gpu, key, gcs_project, src, exp, cha, dst,
                     loc = [a.split('/')[-1] for a in os.listdir(src  + exp_i)]
                 else:
                     loc = [a.split('/')[-1] for a in os.listdir(src  + exp_i) if a.split('/')[-1][0:len(prefix)] == prefix ]
-        
-        print(loc)
+            print(loc)
+
         for i, j in product(range(imin, imax+1), range(jmin, jmax+1)):
             if debugging and (i > imin + 2 or j > jmin + 2):
                 break
@@ -230,10 +230,13 @@ def perform_stack(colors, prefix, use_gpu, key, gcs_project, src, exp, cha, dst,
                 print('c = ' + str(c))
                 if debugging and c >= cmin+4:
                     break
-                if len(prefix) > 0:
-                    id = loc[c - cmin]
-                else:
-                    id = df.loc[c, 'Acquisition_ID']
+                try:
+                    if len(prefix) > 0:
+                        id = loc[c - cmin]
+                    else:
+                        id = df.loc[c, 'Acquisition_ID']
+                except:
+                    break
                     
                 if verbose:
                     print(id)  
@@ -247,8 +250,6 @@ def perform_stack(colors, prefix, use_gpu, key, gcs_project, src, exp, cha, dst,
                     if verbose:
                         print(channel)
 
-                    
-
                     for k in range(0, kmax+1-kmin):
                         if verbose:
                             print(k)
@@ -261,6 +262,11 @@ def perform_stack(colors, prefix, use_gpu, key, gcs_project, src, exp, cha, dst,
                             else:
                                 I = cv2.imread(target)
                         except:
+                            # Log missing data
+                            with open(dst + "log.txt", 'a') as f:
+                                f.write(str(time.time() - t0))
+                                f.write("\n")
+
                             print("Data missing")
                             I = np.zeros((a,a))
                         # crop the image
@@ -330,7 +336,8 @@ def perform_stack(colors, prefix, use_gpu, key, gcs_project, src, exp, cha, dst,
                             pass
                         cv2.imwrite(savepath+fname, I)
         with open(dst + "log.txt", 'a') as f:
-    	    f.write(str(time.time() - t0));
+            f.write(str(time.time() - t0))
+            f.write("\n")
 
 def imread_gcsfs(fs,file_path):
     '''
