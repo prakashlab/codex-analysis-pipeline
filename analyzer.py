@@ -24,11 +24,12 @@ def main():
     channel =  "Fluorescence_405_nm_Ex" # use only this channel as masks
     key = '/home/prakashlab/Documents/fstack/codex-20220324-keys.json'
     gcs_project = 'soe-octopi'
-    out = "/home/prakashlab/Documents/pipeline_test/" + exp_id + "2meanbright_" + str(expansion) + ".csv"
+    mask_union = True
+    out = "/home/prakashlab/Documents/pipeline_test/" + exp_id + "2redone_meanbright_" + str(expansion) + ".csv"
     
-    run_analysis(cy_name, start_idx, end_idx, n_ch, zstack, expansion, root_dir, exp_id, channel, key, gcs_project, out)
+    run_analysis(cy_name, start_idx, end_idx, n_ch, zstack, expansion, root_dir, exp_id, channel, key, gcs_project, mask_union, out)
 
-def run_analysis(cy_name, start_idx, end_idx, n_ch, zstack, expansion, root_dir, exp_id, channel, key, gcs_project, out):
+def run_analysis(cy_name, start_idx, end_idx, n_ch, zstack, expansion, root_dir, exp_id, channel, key, gcs_project, mask_union, out):
     root_remote = False
     if root_dir[0:5] == 'gs://':
         root_remote = True
@@ -119,7 +120,21 @@ def run_analysis(cy_name, start_idx, end_idx, n_ch, zstack, expansion, root_dir,
         kernel = np.zeros((expansion,expansion),np.uint8)
         kernel = cv2.circle(kernel, (int(expansion/2), int(expansion/2)), int(expansion/2), (255,255,255), -1)
         dilation = cv2.dilate(masks,kernel,iterations = 1)
-        
+
+        # save masks
+        if mask_union:
+            dirpath = out_path.rsplit('/', 1)[0]
+            if not out_remote:
+                maskpath = dirpath + '/' +  str(i) + "_" + str(j) + "_" + zstack + ".npy"
+            else:
+                maskpath =  str(i) + "_" + str(j) + "_" + zstack + ".npy"
+            mask_out = [masks > 0, dilation > 0]
+            np.save(maskpath, mask_out, allow_pickle=True)
+
+            if out_remote:
+                fs.put(maskpath, dirpath + '/' + maskpath)
+                os.remove(maskpath)
+
         # for each cell, calculate the mean pixel value
         print("mask " + str(idx) + " has " + str(np.max(masks)) + " cells")
         for l in range(np.max(masks)):

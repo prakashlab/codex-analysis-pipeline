@@ -197,6 +197,7 @@ The CSV columns are cell index in a given view, the i index, j index, x position
 - `zstack`: string. if you ran `fstacker.py` and want to use the focus-stacked images, set this value to `"f"`. otherwise set it to the z stack you want to use (for example, if z=5 is in focus for all cells across all images, you can set `zstack="5"` and those images will be utilized)
 - `key`: string. If you are connecting to a Google Cloud File Storage, set this to the local path to the authentication token .json.
 - `gcs_project`: string. Set this to the Google Cloud Storage project name if you are connecting to GCS. Otherwise, it doesn't matter.
+- `mask_union`: boolean. Set to true to save a .npy pickle for each view with the union of all nuclear and cell masks.
 - `out`: string. Path to store the csv. Local or remote path.
 
 #### run analyzer
