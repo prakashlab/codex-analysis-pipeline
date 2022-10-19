@@ -15,8 +15,8 @@ import torch
 def main():
     # setting up
     data_dir = '/media/prakashlab/T7/subsets'#'./Cellpose Exports for 30deg 4ul 15mmps' # data should contain a train and a test folder
-    model_root = "./models3"
-    epochs = 2000
+    model_root = "./models4"
+    epochs = 8000
     steps = 1
     resume = True
     corrid = "200"

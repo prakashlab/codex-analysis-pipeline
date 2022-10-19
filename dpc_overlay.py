@@ -10,8 +10,8 @@ import os
 
 def main():
     # root_dir needs a trailing slash (i.e. /root/dir/)
-    root_dir = 'gs://octopi-malaria-uganda-2022/Ju46y9GSqf6DNU2TI6m1BQEo33APSB1n/analysis/'#'gs://octopi-codex-data-processing/' #"/home/prakashlab/Documents/kmarx/pipeline/tstflat/"# 'gs://octopi-codex-data-processing/TEST_1HDcVekx4mrtl0JztCXLn9xN6GOak4AU/'#
-    dest_dir = 'gs://octopi-malaria-uganda-2022/Ju46y9GSqf6DNU2TI6m1BQEo33APSB1n/analysis/'
+    root_dir = "/media/prakashlab/T7/malaria-tanzina-2021/Negative-Donor-Samples/"#'gs://octopi-codex-data-processing/' #"/home/prakashlab/Documents/kmarx/pipeline/tstflat/"# 'gs://octopi-codex-data-processing/TEST_1HDcVekx4mrtl0JztCXLn9xN6GOak4AU/'#
+    dest_dir = "/media/prakashlab/T7/malaria-tanzina-2021/Negative-Donor-Samples/"
     exp_id   = "" # experiment ID - needs a trailing '/'
     left_light = "BF_LED_matrix_left_half" # name of the left illumination
     right_light = "BF_LED_matrix_right_half" # set emppty to not do DPC

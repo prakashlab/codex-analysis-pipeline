@@ -18,18 +18,19 @@ def main():
     # How many pixels around the mask to expand
     expansion = 9   
     # root_dir needs a trailing slash (i.e. /root/dir/)
-    root_dir = 'gs://octopi-codex-data-processing/UUlABKZIWxiZP5UnJvx6z1CZMhtxx9tu/'#'gs://octopi-codex-data-processing/' #"/home/prakashlab/Documents/kmarx/pipeline/tstflat/"# 'gs://octopi-codex-data-processing/TEST_1HDcVekx4mrtl0JztCXLn9xN6GOak4AU/'#
-    exp_id   = "20220823_20x_PBMC_2/"
+    root_dir = "/media/prakashlab/T7/malaria-tanzina-2021/"#'gs://octopi-codex-data-processing/UUlABKZIWxiZP5UnJvx6z1CZMhtxx9tu/'#'gs://octopi-codex-data-processing/' #"/home/prakashlab/Documents/kmarx/pipeline/tstflat/"# 'gs://octopi-codex-data-processing/TEST_1HDcVekx4mrtl0JztCXLn9xN6GOak4AU/'#
+    exp_id   = "Negative-Donor-Samples/"
     zstack  = 'f' # select which z to run segmentation on. set to 'f' to select the focus-stacked
     channel =  "Fluorescence_405_nm_Ex" # use only this channel as masks
     key = '/home/prakashlab/Documents/fstack/codex-20220324-keys.json'
     gcs_project = 'soe-octopi'
     mask_union = True
-    out = "/home/prakashlab/Documents/pipeline_test/" + exp_id + "2redone_meanbright_" + str(expansion) + ".csv"
+    out = "/media/prakashlab/T7/malaria-tanzina-2021/results/" 
+    csvname = exp_id + "4redone_meanbright_" + str(expansion) + ".csv"
     
-    run_analysis(cy_name, start_idx, end_idx, n_ch, zstack, expansion, root_dir, exp_id, channel, key, gcs_project, mask_union, out)
+    run_analysis(cy_name, start_idx, end_idx, n_ch, zstack, expansion, root_dir, exp_id, channel, key, gcs_project, mask_union, out, csvname)
 
-def run_analysis(cy_name, start_idx, end_idx, n_ch, zstack, expansion, root_dir, exp_id, channel, key, gcs_project, mask_union, out):
+def run_analysis(cy_name, start_idx, end_idx, n_ch, zstack, expansion, root_dir, exp_id, channel, key, gcs_project, mask_union, out, csvname):
     root_remote = False
     if root_dir[0:5] == 'gs://':
         root_remote = True
@@ -40,18 +41,29 @@ def run_analysis(cy_name, start_idx, end_idx, n_ch, zstack, expansion, root_dir,
         out_remote = True
         out_path = out_placeholder
     if not out_remote:
-        os.makedirs(out_path.rsplit('/', 1)[0], exist_ok=True)
+        os.makedirs(out_path, exist_ok=True)
     fs = None
     if root_remote or out_remote:
         fs = gcsfs.GCSFileSystem(project=gcs_project,token=key)
 
     print("Reading .npy paths")
-    path = root_dir + exp_id + "" + cy_name + "/0/**_" + zstack + "_" + channel + '_seg.npy'
+    path = root_dir + exp_id + 'segmentation/first' + "/0/**_" + zstack + "_" + channel + '_seg.npy'
     print(path)
     if root_remote:
         allpaths = [p for p in fs.glob(path, recursive=True)]
     else:
         allpaths = [p for p in glob.iglob(path, recursive=True)]
+    # ensure successful read - if allpaths is empty, get masks elsewhere
+    if len(allpaths) == 0:
+        print("Read from other source:")
+        path = root_dir + exp_id + "**/0/**_" + zstack  + '**.npy' 
+        print(path)
+        if root_remote:
+            allpaths = [p for p in fs.glob(path, recursive=True)]
+        else:
+            allpaths = [p for p in glob.iglob(path, recursive=True)]
+        # only get cy_name
+        allpaths = [a for a in allpaths if cy_name in a]
     # remove duplicates
     allpaths = list(dict.fromkeys(allpaths))
     allpaths = natsorted(allpaths)
@@ -123,16 +135,15 @@ def run_analysis(cy_name, start_idx, end_idx, n_ch, zstack, expansion, root_dir,
 
         # save masks
         if mask_union:
-            dirpath = out_path.rsplit('/', 1)[0]
             if not out_remote:
-                maskpath = dirpath + '/' +  str(i) + "_" + str(j) + "_" + zstack + ".npy"
+                maskpath = out_path + exp_id +  str(i) + "_" + str(j) + "_" + zstack + ".npy"
             else:
                 maskpath =  str(i) + "_" + str(j) + "_" + zstack + ".npy"
             mask_out = [masks > 0, dilation > 0]
             np.save(maskpath, mask_out, allow_pickle=True)
 
             if out_remote:
-                fs.put(maskpath, dirpath + '/' + maskpath)
+                fs.put(maskpath, out_path + exp_id + maskpath)
                 os.remove(maskpath)
 
         # for each cell, calculate the mean pixel value
@@ -195,14 +206,14 @@ def run_analysis(cy_name, start_idx, end_idx, n_ch, zstack, expansion, root_dir,
             df.loc[len(df.index)] = row
         # append to csv
         print("writing")
-        df.to_csv(out_path, mode='a')
+        df.to_csv(out_path+csvname, mode='a')
         # delete .npy if remote
         if root_remote:
             os.remove(placeholder)
     # move the csv to remote
     if out_remote:
-        fs.put(out_placeholder, out)
-        os.remove(out_placeholder)
+        fs.put(out_placeholder + csvname, out + csvname)
+        os.remove(out_placeholder + csvname)
 
 
 def imread_gcsfs(fs,file_path):

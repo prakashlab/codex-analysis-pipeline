@@ -18,13 +18,13 @@ def main():
     
     CLI = False     # set to true for CLI, if false, the following constants are used:
     use_gpu = True  # use GPU accelerated focus stacking
-    prefix = ""     # if index.csv DNE, use prefix, else keep empty
-    key = '/home/prakashlab/Documents/fstack/codex-20220324-keys.json'
+    prefix = "072622-D"     # if index.csv DNE, use prefix, else keep empty
+    key = '/home/prakashlab/Documents/kmarx/data-20220317-keys.json'
     gcs_project = 'soe-octopi'
-    src = "gs://octopi-codex-data/"
-    dst = "/media/prakashlab/T7/newtest/" #"./test"
-    exp = ['20220823_20x_PBMC_2/']
-    cha = ["Fluorescence_638_nm_Ex", "Fluorescence_561_nm_Ex", "Fluorescence_488_nm_Ex", "Fluorescence_405_nm_Ex"]
+    src = "gs://octopi-malaria-tanzania-2021-data/"
+    dst = "/media/prakashlab/T7/malaria-tanzina-2021/Negative-Donor-Samples/" #"./test"
+    exp = ['Negative-Donor-Samples/']
+    cha = ['BF_LED_matrix_full', 'BF_LED_matrix_left_half', 'BF_LED_matrix_low_NA', 'BF_LED_matrix_right_half', 'Fluorescence_405_nm_Ex']#["Fluorescence_638_nm_Ex", "Fluorescence_561_nm_Ex", "Fluorescence_488_nm_Ex", "Fluorescence_405_nm_Ex"]
     typ = "bmp"
     colors = {'0':[255,255,255],'1':[255,200,0],'2':[30,200,30],'3':[0,0,255]} # BRG
     remove_background = False
@@ -33,13 +33,13 @@ def main():
     subtract_background = False
     use_color = False
     imin = 0    # view positions
-    imax = 19
+    imax = 9
     jmin = 0
-    jmax = 19
+    jmax = 9
     kmin = 0 
     kmax = 0
-    cmin = 0
-    cmax = 14
+    cmin = 1
+    cmax = 10
     crop_start = 0 # crop settings
     crop_end = 3000
     WSize = 9     # Focus stacking params
@@ -264,6 +264,7 @@ def perform_stack(colors, prefix, use_gpu, key, gcs_project, src, exp, cha, dst,
                         except:
                             # Log missing data
                             with open(dst + "log.txt", 'a') as f:
+                                f.write(filename)
                                 f.write(str(time.time() - t0))
                                 f.write("\n")
 
