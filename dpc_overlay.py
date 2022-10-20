@@ -10,9 +10,9 @@ import os
 
 def main():
     # root_dir needs a trailing slash (i.e. /root/dir/)
-    root_dir = "/media/prakashlab/T7/malaria-tanzina-2021/Negative-Donor-Samples/"#'gs://octopi-codex-data-processing/' #"/home/prakashlab/Documents/kmarx/pipeline/tstflat/"# 'gs://octopi-codex-data-processing/TEST_1HDcVekx4mrtl0JztCXLn9xN6GOak4AU/'#
-    dest_dir = "/media/prakashlab/T7/malaria-tanzina-2021/Negative-Donor-Samples/"
-    exp_id   = "" # experiment ID - needs a trailing '/'
+    root_dir = "/media/prakashlab/T7/malaria-tanzina-2021/"#'gs://octopi-codex-data-processing/' #"/home/prakashlab/Documents/kmarx/pipeline/tstflat/"# 'gs://octopi-codex-data-processing/TEST_1HDcVekx4mrtl0JztCXLn9xN6GOak4AU/'#
+    dest_dir = "/media/prakashlab/T7/malaria-tanzina-2021/dpc/"
+    exp_id   = "Negative-Donor-Samples/" # experiment ID - needs a trailing '/'
     left_light = "BF_LED_matrix_left_half" # name of the left illumination
     right_light = "BF_LED_matrix_right_half" # set emppty to not do DPC
     fluorescence = "Fluorescence_405_nm_Ex"  # set empty to not do overlay
@@ -23,6 +23,11 @@ def main():
     do_dpc_overlay(root_dir, dest_dir, exp_id, left_light, right_light, fluorescence, zstack, key, gcs_project, ftype)
 
 def do_dpc_overlay(root_dir, dest_dir, exp_id, left_light, right_light, fluorescence, zstack, key, gcs_project, ftype):
+    # load fluorescence correction
+    flatfield_fluorescence = np.load('illumination correction/flatfield_fluorescence.npy')
+    flatfield_fluorescence = np.dstack((flatfield_fluorescence,flatfield_fluorescence,flatfield_fluorescence))
+    flatfield_left = np.load('illumination correction/flatfield_left.npy')
+    flatfield_right = np.load('illumination correction/flatfield_right.npy')
     # Load remote files if necessary
     root_remote = False
     if root_dir[0:5] == 'gs://':
@@ -69,12 +74,22 @@ def do_dpc_overlay(root_dir, dest_dir, exp_id, left_light, right_light, fluoresc
                 rht = np.array(cv2.imread(rhtpaths[idx]), dtype=np.uint8)
             if type(flrpaths) != type(None):
                 flr = np.array(cv2.imread(flrpaths[idx]), dtype=np.uint8)
-
-        # generate DPC
+        # flatfield correction
+        flr = flr.astype('float')/255
+        lft = lft.astype('float')/255
+        rht = rht.astype('float')/255
+        flr = flr/flatfield_fluorescence
+        lft = lft/flatfield_left
+        rht = rht/flatfield_right
+        # fluorescence enhance
+        flr = flr*1.25
+        flr[flr>1] = 1
+        
+        # generate DPC (converts from float to uint8)
         dpc = None
         if type(rht) != type(None):
             dpc = generate_dpc(lft, rht)
-        # generate overlay
+        # generate overlay (converts from float to uint8)
         over = None
         if type(flr) != type(None):
             if type(dpc) == type(None):
@@ -84,6 +99,10 @@ def do_dpc_overlay(root_dir, dest_dir, exp_id, left_light, right_light, fluoresc
         
         # save results:
         path = lftpaths[idx].rsplit('_', 2)[0]
+        pth = path.split('/')
+        path = dest_dir + pth[-4] + '/' + pth[-3] + '/' + pth[-2] + '/' + pth[-1]
+        print(path)
+
         if type(over) != type(None):
             savepath = path + "_overlay." + ftype
             
@@ -92,18 +111,18 @@ def do_dpc_overlay(root_dir, dest_dir, exp_id, left_light, right_light, fluoresc
                 fs.put("./img." + ftype, savepath)
                 os.remove("./img." + ftype)
             else:
-                os.makedirs(savepath, exist_ok=True)
+                os.makedirs(savepath.rsplit('/', 1)[0], exist_ok=True)
                 cv2.imwrite(savepath, over)
         if type(dpc) != type(None):
             savepath = path + "_dpc." + ftype
             
             if dest_dir[0:5] == 'gs://':
-                cv2.imwrite("./img." + ftype, over)
+                cv2.imwrite("./img." + ftype, dpc)
                 fs.put("./img." + ftype, savepath)
                 os.remove("./img." + ftype)
             else:
-                os.makedirs(savepath, exist_ok=True)
-                cv2.imwrite(savepath, over)
+                os.makedirs(savepath.rsplit('/', 1)[0], exist_ok=True)
+                cv2.imwrite(savepath, dpc)
 
 def imread_gcsfs(fs,file_path):
     '''
@@ -123,17 +142,20 @@ def imread_gcsfs(fs,file_path):
     return I
 
 def generate_dpc(I_1,I_2):
-    I1 = I_1.astype('float')/(255.0)
-    I2 = I_2.astype('float')/(255.0)
-    I_dpc = np.divide(I1-I2,I1+I2)
+    I_dpc = np.divide(I_1-I_2,I_1+I_2)
     I_dpc = I_dpc + 0.5
     I_dpc[I_dpc<0] = 0
     I_dpc[I_dpc>1] = 1
 
-    return I_dpc * 255
+    I_dpc = (255*I_dpc)
+
+    return I_dpc.astype('uint8')
 
 def overlay(I_dpc, I_flr):
-    I_overlay = 0.64*I_flr.astype('float') + 0.36*I_dpc.astype('float')
+    I_overlay = 0.64*I_flr + 0.36*I_dpc
+
+    I_overlay = (255 * I_overlay)
+    
     return I_overlay.astype('uint8')
 
 if __name__ == "__main__":
