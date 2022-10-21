@@ -11,13 +11,13 @@ import os
 def main():
     # root_dir needs a trailing slash (i.e. /root/dir/)
     root_dir = "/media/prakashlab/T7/malaria-tanzina-2021/"#'gs://octopi-codex-data-processing/' #"/home/prakashlab/Documents/kmarx/pipeline/tstflat/"# 'gs://octopi-codex-data-processing/TEST_1HDcVekx4mrtl0JztCXLn9xN6GOak4AU/'#
-    dest_dir = "/media/prakashlab/T7/malaria-tanzina-2021/dpc/"
+    dest_dir = "gs://octopi-malaria-data-processing/malaria-tanzina-2021/"
     exp_id   = "Negative-Donor-Samples/" # experiment ID - needs a trailing '/'
     left_light = "BF_LED_matrix_left_half" # name of the left illumination
     right_light = "BF_LED_matrix_right_half" # set emppty to not do DPC
     fluorescence = "Fluorescence_405_nm_Ex"  # set empty to not do overlay
     zstack  = 'f' # select which z to run segmentation on. set to 'f' to select the focus-stacked
-    key = '/home/prakashlab/Documents/kmarx/malaria_deepzoom/deepzoom uganda 2022/uganda-2022-viewing-keys.json'
+    key = '/home/prakashlab/Documents/kmarx/data-20220317-keys.json'
     gcs_project = 'soe-octopi'
     ftype = 'png'
     do_dpc_overlay(root_dir, dest_dir, exp_id, left_light, right_light, fluorescence, zstack, key, gcs_project, ftype)
@@ -32,8 +32,11 @@ def do_dpc_overlay(root_dir, dest_dir, exp_id, left_light, right_light, fluoresc
     root_remote = False
     if root_dir[0:5] == 'gs://':
         root_remote = True
+    dest_remote = False
+    if dest_dir[0:5] == 'gs://':
+        dest_remote = True
     fs = None
-    if root_remote:
+    if root_remote or dest_remote:
         fs = gcsfs.GCSFileSystem(project=gcs_project,token=key)
     
     path = os.path.join(root_dir , exp_id , "**/0/**_" + zstack + "_" + left_light + '.' + ftype)
@@ -74,6 +77,10 @@ def do_dpc_overlay(root_dir, dest_dir, exp_id, left_light, right_light, fluoresc
                 rht = np.array(cv2.imread(rhtpaths[idx]), dtype=np.uint8)
             if type(flrpaths) != type(None):
                 flr = np.array(cv2.imread(flrpaths[idx]), dtype=np.uint8)
+        if len(lft.shape) == 3:
+            lft=lft[:,:,0]
+        if len(rht.shape) == 3:
+            rht=rht[:,:,0]
         # flatfield correction
         flr = flr.astype('float')/255
         lft = lft.astype('float')/255
@@ -89,6 +96,8 @@ def do_dpc_overlay(root_dir, dest_dir, exp_id, left_light, right_light, fluoresc
         dpc = None
         if type(rht) != type(None):
             dpc = generate_dpc(lft, rht)
+            if(len(dpc.shape)<3):
+                dpc = np.dstack((dpc,dpc,dpc))
         # generate overlay (converts from float to uint8)
         over = None
         if type(flr) != type(None):
@@ -101,12 +110,11 @@ def do_dpc_overlay(root_dir, dest_dir, exp_id, left_light, right_light, fluoresc
         path = lftpaths[idx].rsplit('_', 2)[0]
         pth = path.split('/')
         path = dest_dir + pth[-4] + '/' + pth[-3] + '/' + pth[-2] + '/' + pth[-1]
-        print(path)
 
         if type(over) != type(None):
             savepath = path + "_overlay." + ftype
-            
-            if dest_dir[0:5] == 'gs://':
+            print(savepath)
+            if dest_remote:
                 cv2.imwrite("./img." + ftype, over)
                 fs.put("./img." + ftype, savepath)
                 os.remove("./img." + ftype)
@@ -115,8 +123,8 @@ def do_dpc_overlay(root_dir, dest_dir, exp_id, left_light, right_light, fluoresc
                 cv2.imwrite(savepath, over)
         if type(dpc) != type(None):
             savepath = path + "_dpc." + ftype
-            
-            if dest_dir[0:5] == 'gs://':
+            print(savepath)
+            if dest_remote:
                 cv2.imwrite("./img." + ftype, dpc)
                 fs.put("./img." + ftype, savepath)
                 os.remove("./img." + ftype)
@@ -152,10 +160,11 @@ def generate_dpc(I_1,I_2):
     return I_dpc.astype('uint8')
 
 def overlay(I_dpc, I_flr):
-    I_overlay = 0.64*I_flr + 0.36*I_dpc
+    dpc = I_dpc.astype("float")/255
+    I_overlay = 0.64*I_flr + 0.36*dpc
 
     I_overlay = (255 * I_overlay)
-    
+
     return I_overlay.astype('uint8')
 
 if __name__ == "__main__":
