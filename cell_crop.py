@@ -1,30 +1,32 @@
 import gcsfs
 import imageio
-import argparse
 import numpy as np
 import pandas as pd
 import cv2
 import os
 import time
+from tqdm import trange
 
 def main():
     # root_dir needs a trailing slash (i.e. /root/dir/)
-    root_dir = "gs://octopi-codex-data/"
+    root_dir = "gs://octopi-codex-data-processing/UUlABKZIWxiZP5UnJvx6z1CZMhtxx9tm/"
     exp_id   = "20220823_20x_PBMC_2/"
-    dest_dir = "gs://octopi-codex-data-processing/foF3pmoJguvzNdwqbUmpOkwRzAsv39FO/" + exp_id + "image_crop/"
-    channel =  "Fluorescence_405_nm_Ex" # only crop images from this channel
+    dest_dir = "./imgs_crop_idx/"#"gs://octopi-codex-data-processing/foF3pmoJguvzNdwqbUmpOkwRzAsv39FO/" + exp_id + "image_crop/"
+    channels =  ["Fluorescence_638_nm_Ex", "Fluorescence_561_nm_Ex", "Fluorescence_488_nm_Ex", "Fluorescence_405_nm_Ex"]
     celltype_file = "./08_23_22_PBMC_Octopi_celltypes.csv"
-    zstack  = 0 # select which z to crop. set to 'f' to select the focus-stacked
+    zstack  = 'f' # select which z to crop. set to 'f' to select the focus-stacked
     key = "/home/prakashlab/Documents/fstack/codex-20220324-keys.json"
     gcs_project = 'soe-octopi'
-    cell_radius = 30
+    cell_radius = 25
     n_of_each_type = 200
+    ftype = 'png'
+    subtract_min = True
     t0 = time.time()
-    make_crops(root_dir, exp_id, channel, zstack, celltype_file, key, gcs_project, dest_dir, cell_radius, n_of_each_type)
+    make_crops(root_dir, exp_id, channels, zstack, celltype_file, key, gcs_project, dest_dir, cell_radius, n_of_each_type, ftype, subtract_min)
     t1 = time.time()
     print(t1-t0)
 
-def make_crops(root_dir, exp_id, channel, zstack, celltype_file, key, gcs_project, dest_dir, cell_radius, n_of_each_type):
+def make_crops(root_dir, exp_id, channels, zstack, celltype_file, key, gcs_project, dest_dir, cell_radius, n_of_each_type, ftype, subtract_min):
     img_remote = False
     if root_dir[0:5] == 'gs://':
         img_remote = True
@@ -57,14 +59,13 @@ def make_crops(root_dir, exp_id, channel, zstack, celltype_file, key, gcs_projec
     else:
         with open( path, 'r' ) as f:
             df = pd.read_csv(f)
-    id = df.loc[0, 'Acquisition_ID']
-    print(id)
-
+    ids = df['Acquisition_ID']
     seen_types = dict()
     
-    for i in range(celltype_df.shape[0]):
+    for i in trange(celltype_df.shape[0]):
         i_idx = int(celltype_df["i"][i])
         j_idx = int(celltype_df["j"][i])
+        # note - x and y are swapped here
         ypos  = int(celltype_df["x"][i])
         xpos  = int(celltype_df["y"][i])
         cell_type = celltype_df["cell_type"][i]
@@ -77,31 +78,61 @@ def make_crops(root_dir, exp_id, channel, zstack, celltype_file, key, gcs_projec
                 seen_types[cell_type] += 1
         else:
             seen_types[cell_type] = 1
-        # load image 
-        filename = id + '/0/' + str(i_idx) + '_' + str(j_idx) + '_' + str(zstack) + '_' + channel + '.bmp'
-        image_path = root_dir + exp_id + filename
-        print(image_path)
-        if img_remote:
-            im = imread_gcsfs(fs,image_path)
-        else:
-            im = cv2.imread(image_path)
-        im = np.array(im)
-        xmax, ymax = im.shape
+        #imgs = np.zeros((2*cell_radius, 2*cell_radius * (len(ids)*(len(channels) - 1) +1)))
+        imgs = np.zeros((2*cell_radius, 2*cell_radius * len(ids)*len(channels)))
+        err_flag = False
+        for ch_idx, channel in enumerate(channels):
+            if err_flag:
+                break
+            for id_idx, id in enumerate(ids):
+                # load image 
+                filename = id + '/0/' + str(i_idx) + '_' + str(j_idx) + '_' + str(zstack) + '_' + channel + '.' + ftype
+                image_path = root_dir + exp_id + filename
+                #print(image_path)
+                try:
+                    if img_remote:
+                        im = imread_gcsfs(fs,image_path)
+                    else:
+                        im = cv2.imread(image_path)
+                except FileNotFoundError:
+                    print(image_path)
+                    print(f"Invalid index at celltype_df index {i}!")
+                    err_flag = True
+                    break
+                im = np.array(im)
+                if(np.max(im) == 0):
+                    print("error - image blank")
+                    continue
+                xmax, ymax = im.shape
 
-        xcrop = [int(max(0, xpos - cell_radius)), int(min(xmax, xpos + cell_radius))]
-        ycrop = [int(max(0, ypos - cell_radius)), int(min(ymax, ypos + cell_radius))]
+                xcrop = [int(max(0, xpos - cell_radius)), int(min(xmax, xpos + cell_radius))]
+                ycrop = [int(max(0, ypos - cell_radius)), int(min(ymax, ypos + cell_radius))]
 
-        cropped_image = im[xcrop[0]:xcrop[1], ycrop[0]:ycrop[1]]
+                cropped_image = np.array(im[xcrop[0]:xcrop[1], ycrop[0]:ycrop[1]])
 
+                if subtract_min:
+                    cropped_image = cropped_image - np.min(cropped_image)
+                    
+                a = 2*cell_radius*(ch_idx * len(ids) + id_idx)
+                b = 2*cell_radius*(1 + ch_idx * len(ids) + id_idx)
+                #print((a,b))
+                imgs[:, a : b] = cropped_image
+
+                # only get 1 fluorescence 405nm image
+                # if channel == "Fluorescence_405_nm_Ex":
+                #     break
+        if err_flag:
+            seen_types[cell_type] -= 1
+            continue
         cell_type = celltype_df["cell_type"][i]
-        filename = str(ypos) + "_" + str(xpos) + "_" + str(i_idx) + '_' + str(j_idx) + '_' + str(zstack) + '_' + channel + '.bmp'
-        savepath = dest_local + '/' + cell_type + '/'
+        filename = str(i) + "_" + str(ypos) + "_" + str(xpos) + '.bmp'
+        savepath = dest_local + cell_type + '/'
         os.makedirs(savepath, exist_ok=True)
         savepath = savepath + filename
-        print(savepath)
+        #print(savepath)
         remotepath = dest_dir + cell_type + '/' + filename
-        print(remotepath)
-        cv2.imwrite(savepath, cropped_image)
+        #print(remotepath)
+        cv2.imwrite(savepath, imgs)
         if dest_remote:
             fs.put(savepath, remotepath)
             os.remove(savepath)
