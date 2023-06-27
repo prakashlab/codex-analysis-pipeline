@@ -1,7 +1,5 @@
-# CLI/script to focus-stack a series of local or remote images 
 import gcsfs
 import imageio
-import argparse
 import numpy as np
 import pandas as pd
 import cv2
