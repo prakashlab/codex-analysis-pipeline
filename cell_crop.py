@@ -9,14 +9,14 @@ from tqdm import trange
 
 def main():
     # root_dir needs a trailing slash (i.e. /root/dir/)
-    root_dir = "gs://octopi-codex-data-processing/UUlABKZIWxiZP5UnJvx6z1CZMhtxx9tm/"
-    exp_id   = "20220823_20x_PBMC_2/"
-    dest_dir = "./imgs_crop_idx/"#"gs://octopi-codex-data-processing/foF3pmoJguvzNdwqbUmpOkwRzAsv39FO/" + exp_id + "image_crop/"
+    root_dir = "gs://directory/"
+    exp_id   = "exp_id_1/"
+    dest_dir = "gs://path_to_dest/"
     channels =  ["Fluorescence_638_nm_Ex", "Fluorescence_561_nm_Ex", "Fluorescence_488_nm_Ex", "Fluorescence_405_nm_Ex"]
-    celltype_file = "./08_23_22_PBMC_Octopi_celltypes.csv"
-    zstack  = 'f' # select which z to crop. set to 'f' to select the focus-stacked
-    key = "/home/prakashlab/Documents/fstack/codex-20220324-keys.json"
-    gcs_project = 'soe-octopi'
+    celltype_file = "./celltypes.csv"
+    zstack  = 'f' # select which z to crop. set to 'f' to select the registered images
+    key = "/path/to/key.json"
+    gcs_project = 'project-name'
     cell_radius = 25
     n_of_each_type = 200
     ftype = 'png'

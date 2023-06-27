@@ -9,12 +9,13 @@ from skimage.morphology import disk
 from skimage.registration import phase_cross_correlation
 from skimage.transform import warp, AffineTransform
 import os
+import json
 debugging = False
 import time
 
 def main():
     prefix = ""     # if index.csv DNE, use prefix, else keep empty
-    key = 'path/to/key/'
+    key = 'path/to/key.json'
     gcs_project = 'project-name'
     src = "gs://source-bucket-or-local-path/"
     dst = "gs://dest-bucket-or-local-path/"
@@ -27,22 +28,14 @@ def main():
     shift_registration = True
     subtract_background = False
     use_color = False
-    imin = 0    # view positions
-    imax = 9
-    jmin = 0
-    jmax = 9
-    kmin = 0 
-    kmax = 0
-    cmin = 1
-    cmax = 10
     crop_start = 0 # crop settings
     crop_end = 3000
     verbose = True
     
-    perform_stack(colors, prefix, key, gcs_project, src, exp, cha, dst, typ, imin, imax, jmin, jmax, kmin, kmax, cmin, cmax, crop_start, crop_end, remove_background, subtract_background, invert_contrast, shift_registration, use_color, verbose)
+    perform_stack(colors, prefix, key, gcs_project, src, exp, cha, dst, typ, crop_start, crop_end, remove_background, subtract_background, invert_contrast, shift_registration, use_color, verbose)
     return
     
-def perform_stack(colors, prefix, key, gcs_project, src, exp, cha, dst, typ, imin, imax, jmin, jmax, kmin, kmax, cmin, cmax, crop_start, crop_end, remove_background, subtract_background, invert_contrast, shift_registration, use_color, verbose):
+def perform_stack(colors, prefix, key, gcs_project, src, exp, cha, dst, typ, crop_start, crop_end, remove_background, subtract_background, invert_contrast, shift_registration, use_color, verbose):
     os.makedirs(dst, exist_ok = True)
     t0 = time.time()
     a = crop_end - crop_start
@@ -92,10 +85,6 @@ def perform_stack(colors, prefix, key, gcs_project, src, exp, cha, dst, typ, imi
     if is_remote:
         fs = gcsfs.GCSFileSystem(project=gcs_project,token=key)
 
-    # store total # of imgs
-    with open(dst + "log.txt", 'w') as f:
-        f.write(str(len(exp) * (imax - imin + 1) * (jmax - jmin + 1) * (kmax - kmin + 1) * (cmax - cmin + 1)))
-        f.write(' images\n')
     # perform fstack for each experiment and for each channel and for each i,j
     for exp_i in exp:
         # load index.csv for each top-level experiment index
@@ -129,17 +118,39 @@ def perform_stack(colors, prefix, key, gcs_project, src, exp, cha, dst, typ, imi
                 else:
                     loc = [a.split('/')[-1] for a in os.listdir(src  + exp_i) if a.split('/')[-1][0:len(prefix)] == prefix ]
             print(loc)
+        # get imin, imax, jmin, jmax, kmin, kmax from acquisition parameters
+        json_file = None
+        fname = src + exp_i + 'acquisition parameters.json'
+        if is_remote:
+            json_file = fs.cat(fname)
+            acquisition_parameters = json.loads(json_file)
+        else:
+            json_file = open(fname)
+            acquisition_parameters = json.load(json_file)
+	
+        # debugging - limit ranges
+        if debugging:
+            acquisition_parameters['Nx'] = min(acquisition_parameters['Nx'], 2)
+            acquisition_parameters['Ny'] = min(acquisition_parameters['Ny'], 2)
+            acquisition_parameters['Nz'] = min(acquisition_parameters['Nz'], 2)
 
-        for i, j in product(range(imin, imax+1), range(jmin, jmax+1)):
-            if debugging and (i > imin + 2 or j > jmin + 2):
-                break
-            for c in range(cmin, cmax+1):
+        if len(prefix) > 0:
+            cmax = len(loc)
+        else:
+            cmax = len(df)
+            # store total # of imgs
+        with open(dst + "log.txt", 'w') as f:
+            f.write(exp_i + 'has ' + str(acquisition_parameters['Ny']*acquisition_parameters['Nx']*acquisition_parameters['Nz']*cmax))
+            f.write(' images\n')
+
+        for i, j in product(range(acquisition_parameters['Ny']), range(acquisition_parameters['Nx'])):
+            for c in range(cmax):
                 print('c = ' + str(c))
-                if debugging and c >= cmin+4:
+                if debugging and c >= 4:
                     break
                 try:
                     if len(prefix) > 0:
-                        id = loc[c - cmin]
+                        id = loc[c]
                     else:
                         id = df.loc[c, 'Acquisition_ID']
                 except:
@@ -157,9 +168,9 @@ def perform_stack(colors, prefix, key, gcs_project, src, exp, cha, dst, typ, imi
                     if verbose:
                         print(channel)
 
-                    k = int((kmax+1-kmin)/2)
+                    k = int((acquisition_parameters['Nz'])/2)
                     
-                    filename = id + '/0/' + str(i) + '_' + str(j) + '_' + str(k+kmin) + '_' + channel + '.' + typ
+                    filename = id + '/0/' + str(i) + '_' + str(j) + '_' + str(k) + '_' + channel + '.' + typ
                     target = src + exp_i + filename
                     print(target)
                     try:

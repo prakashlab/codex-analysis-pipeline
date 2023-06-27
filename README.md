@@ -28,6 +28,10 @@ This repository contains the following scripts, intended to be run on data gener
 - `requirements_analyze.txt`: requirements for operation, install using `pip install -r requirements_analyze.txt`
 - `analyzer.py`: measure the size and average brightness of each cell in each channel and save as a csv. Shift registration and segmentation must be run on the data first before running this step.
 
+#### view cells
+
+- `cell_crop.py`: Once the cells are identified, load the CSV, find a certain number of each cell and save them as images.
+
 ### Usage Guide
 
 #### preliminary initialization
@@ -95,8 +99,8 @@ if you are having trouble installing cellpose, try uninstalling all other python
 ##### set segmenter parameters
 
 - `root_dir`: string. local or remote path to where the images are stored
-- `exp_id`: string. experiment ID to get the images from. see fstacker theory of operation for more detail.
-- `channel`: string. image channel to randomly select from. see fstacker theory of operation for more detail.
+- `exp_id`: string. experiment ID to get the images from. see registrator theory of operation for more detail.
+- `channel`: string. image channel to randomly select from. see registrator theory of operation for more detail.
 - `zstack`: string. if you ran `registrator.py` and want to use the shift-registered images, set this value to `"f"`. otherwise set it to the z stack you want to use (for example, if z=5 is in focus for all cells across all images, you can set `zstack="5"` and those images will be utilized)
 - `key`: string. If you are connecting to a Google Cloud File Storage, set this to the local path to the authentication token .json.
 - `gcs_project`: string. Set this to the Google Cloud Storage project name if you are connecting to GCS. Otherwise, it doesn't matter.
@@ -120,13 +124,34 @@ The CSV columns are cell index in a given view, the i index, j index, x position
 - `n_ch`: integer. Number of channels to analyze
 - `expansion`: integer, must be odd. The number of pixels to expand around the nucleus mask to create the cell masks.
 - `root_dir`: string. local or remote path to where the images are stored
-- `exp_id`: string. experiment ID to get the images from. see fstacker theory of operation for more detail.
-- `channel`: string. image channel to randomly select from. see fstacker theory of operation for more detail.
-- `zstack`: string. if you ran `registrator.py` and want to use the focus-stacked images, set this value to `"f"`. otherwise set it to the z stack you want to use (for example, if z=5 is in focus for all cells across all images, you can set `zstack="5"` and those images will be utilized)
+- `exp_id`: string. experiment ID to get the images from. see registrator theory of operation for more detail.
+- `channel`: string. image channel to randomly select from. see registrator theory of operation for more detail.
+- `zstack`: string. if you ran `registrator.py` and want to use the shift registered images, set this value to `"f"`. otherwise set it to the z stack you want to use (for example, if z=5 is in focus for all cells across all images, you can set `zstack="5"` and those images will be utilized)
 - `key`: string. If you are connecting to a Google Cloud File Storage, set this to the local path to the authentication token .json.
 - `gcs_project`: string. Set this to the Google Cloud Storage project name if you are connecting to GCS. Otherwise, it doesn't matter.
 - `mask_union`: boolean. Set to true to save a .npy pickle for each view with the union of all nuclear and cell masks.
 - `out`: string. Path to store the csv. Local or remote path.
+
+#### cell crop usage
+
+##### cell crop operation
+
+We first read the cell type csv file. For each row, we check whether the cell type is one we have already seen enough times. If so, we skip it. If we haven't seen this cell type enough times, we increment the number of times we have seen the cell type and load the image for each channel and for each cycle. Then, we crop the images such that the cell is centered and concatenate the different channels/cycles together to form a single image. Then we save the image to disk and move on to the next row in the csv.
+
+##### set cell crop parameters
+
+- `root_dir`: string. local or remote path to where the images are stored
+- `exp_id`: string. experiment ID to get the images from. see registrator theory of operation for more detail.
+- `dest_dir`: string. local or remote path to where the images are stored
+- `channels`: list of strings. channels to read from when making the combined image.
+- `celltype_file`: string. local or remote path to celltype .csv file.
+- `zstack`: string. if you ran `registrator.py` and want to use the shift registered images, set this value to `"f"`. otherwise set it to the z stack you want to use (for example, if z=5 is in focus for all cells across all images, you can set `zstack="5"` and those images will be utilized)
+- `key`: string. If you are connecting to a Google Cloud File Storage, set this to the local path to the authentication token .json.
+- `gcs_project`: string. Set this to the Google Cloud Storage project name if you are connecting to GCS. Otherwise, it doesn't matter.
+- `cell_radius`: integer. half the width/height of the final views.
+- `n_of_each_type`: integer. number of each cell type to make views for
+- `ftype`: string. file type to save the outputs as
+- `subtract_min`: boolean. set "True" to subtract the minimum value off from each view.
 
 ## Contributing
 

@@ -10,23 +10,21 @@ from natsort import natsorted
 
 def main():
     # Cycle indices are 0-12, we can choose a subset of the cycles to analyze
-    cy_name = "cycle0_2022-08-23_20-15-33.401781" # choose cycle to use as mask
-    start_idx = 0 #2
-    end_idx   = 13 #11
-    # 4 channels
+    cy_name = "cycle" # choose cycle to use as mask
+    start_idx = -1
+    end_idx   = -1
     n_ch      = 4
-    # How many pixels around the mask to expand
-    expansion = 9   
+    expansion = 9 # How many pixels around the mask to expand   
     # root_dir needs a trailing slash (i.e. /root/dir/)
-    root_dir = "/media/prakashlab/T7/malaria-tanzina-2021/"#'gs://octopi-codex-data-processing/UUlABKZIWxiZP5UnJvx6z1CZMhtxx9tu/'#'gs://octopi-codex-data-processing/' #"/home/prakashlab/Documents/kmarx/pipeline/tstflat/"# 'gs://octopi-codex-data-processing/TEST_1HDcVekx4mrtl0JztCXLn9xN6GOak4AU/'#
-    exp_id   = "Negative-Donor-Samples/"
-    zstack  = 'f' # select which z to run segmentation on. set to 'f' to select the focus-stacked
+    root_dir = "gs://source-bucket-or-local-path/"#'gs://octopi-codex-data-processing/UUlABKZIWxiZP5UnJvx6z1CZMhtxx9tu/'#'gs://octopi-codex-data-processing/' #"/home/prakashlab/Documents/kmarx/pipeline/tstflat/"# 'gs://octopi-codex-data-processing/TEST_1HDcVekx4mrtl0JztCXLn9xN6GOak4AU/'#
+    exp_id   = "experiment_id_1/"
+    zstack  = 'f' # select which z to run segmentation on. set to 'f' to select the shift registration
     channel =  "Fluorescence_405_nm_Ex" # use only this channel as masks
-    key = '/home/prakashlab/Documents/fstack/codex-20220324-keys.json'
-    gcs_project = 'soe-octopi'
-    mask_union = True
-    out = "/media/prakashlab/T7/malaria-tanzina-2021/results/" 
-    csvname = exp_id + "4redone_meanbright_" + str(expansion) + ".csv"
+    key = '/path/to/key.json'
+    gcs_project = 'project-name'
+    mask_union = False
+    out = "gs://path/to/save/" 
+    csvname = exp_id + "result" + str(expansion) + ".csv"
     
     run_analysis(cy_name, start_idx, end_idx, n_ch, zstack, expansion, root_dir, exp_id, channel, key, gcs_project, mask_union, out, csvname)
 
@@ -84,7 +82,8 @@ def run_analysis(cy_name, start_idx, end_idx, n_ch, zstack, expansion, root_dir,
     allpaths = np.array(allpaths)
     # remove images out of cycle bounds
     all_cycles = natsorted(list(dict.fromkeys([i.split('/')[-3] for i in allpaths])))
-    target_cycles = all_cycles[start_idx:end_idx+1]
+    if start_idx > 0 and end_idx > 0 and end_idx >= start_idx:
+        target_cycles = all_cycles[start_idx:end_idx+1]
     pngpaths = [p for p in allpaths if p.split('/')[-3] in target_cycles]
     print(str(len(pngpaths)) + " images to analyze")
 
